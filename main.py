@@ -59,27 +59,7 @@ def frontend():
 
 
 if __name__ == '__main__':
-    # 读取数据
-    data_wx = read_data_wx('data/微信支付账单(20240701-20240801).csv')  # 读数据
-    data_zfb = read_data_zfb('data/alipay_record_20240801_165204.csv')  # 读数据
-    data_bank = read_data_bank('data/bank_record.csv')
-    path_account = 'data/自动记账2.0_源数据.xlsx'
-    path_write = 'data/自动记账2.0_可视化.xlsx'
-
-    # 检查账单
-    check_bill_data(data_wx)
-    check_bill_data(data_zfb)
-
-    # 合并数据
-    data_merge = pd.concat([data_wx, data_zfb], axis=0)
-    data_merge = pd.concat([data_merge, data_bank], axis=0)# 上下拼接合并表格
-    data_merge = add_cols(data_merge)  # 新增 逻辑、月份、乘后金额 3列
-    print("已自动计算乘后金额和交易月份，已合并数据")
-
-    # 检查合并数据
-    check_bill_data(data_merge)
-
-
+    record = load()
     exit(0)
 
     # 写入账本
