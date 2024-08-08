@@ -7,12 +7,12 @@
 # Finished:    2021/1/7 20:30
 # Author:      AmyZhang
 
-import openpyxl
+
 import tkinter.filedialog
 import datetime
 import msvcrt
 
-from solution import *
+from loader import *
 
 
 def frontend():
@@ -59,7 +59,7 @@ def frontend():
 
 
 if __name__ == '__main__':
-    record = load()
+    record = load_data()
     exit(0)
 
     # 写入账本
