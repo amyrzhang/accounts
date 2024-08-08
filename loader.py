@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import numpy as np
 import openpyxl
 import re
@@ -7,12 +9,13 @@ import pandas as pd
 
 def load_data():
     # 读取数据
-    # data_weixin = load_data_weixin('data/微信支付账单(20240701-20240801).csv')  # 读数据
     recorder = WeixinTransactions()
     recorder.path = 'data/微信支付账单(20240701-20240801).csv'
     data_weixin = recorder.load_data_weixin()
 
-    data_alipay = read_data_alipay('data/alipay_record_20240801_165204.csv')  # 读数据
+    recorder = AlipayTransactions()
+    recorder.path = 'data/alipay_record_20240801_165204.csv'
+    data_alipay = recorder.load_data_alipay()  # 读数据
     data_bank = read_data_bank('data/bank_record.csv')
 
     # 检查账单
@@ -45,6 +48,18 @@ class WeixinTransactions:
         self.net_expenditures = 0
         self.balance = 0
 
+
+
+    def extract_summary(self):
+        # 校验数据
+        with open(self.path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            self.incomes = float(re.findall(r'笔 (.+?)元', lines[7])[0])
+            self.expenditures = float(re.findall(r'笔 (.+?)元', lines[8])[0])
+            self.balance = round(self.incomes - self.expenditures, 2)
+        return
+
+
     def read_data_weixin(self):  # 获取微信数据
         d_weixin = pd.read_csv(self.path, header=16, skipfooter=0, encoding='utf-8')  # 数据获取，微信
         selected_columns = ['交易时间', '收/支', '当前状态', '交易类型', '交易对方', '商品', '金额(元)', '支付方式']
@@ -56,12 +71,6 @@ class WeixinTransactions:
         d_weixin.insert(1, '来源', "微信", allow_duplicates=True)  # 添加微信来源标识
 
         # 校验数据
-        with open(self.path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-            self.incomes = float(re.findall(r'笔 (.+?)元', lines[7])[0])
-            self.expenditures = float(re.findall(r'笔 (.+?)元', lines[8])[0])
-            self.balance = round(self.incomes - self.expenditures, 2)
-
         actual_incomes = sum(d_weixin[d_weixin['收/支'] == '收入']['金额'])
         actual_expenditures = sum(d_weixin[d_weixin['收/支'] == '支出']['金额'])
 
@@ -74,6 +83,7 @@ class WeixinTransactions:
 
     def load_data_weixin(self):
         # 读取数据
+        self.extract_summary()
         data = self.read_data_weixin()
 
         # 处理【支付方式】和【金额】
@@ -90,6 +100,63 @@ class WeixinTransactions:
         self.net_expenditures = -sum(data[data['收/支'] == '支出']['amount'])
 
         return data
+
+
+class AlipayTransactions:
+    def __init__(self):
+        self.path = ''
+        self.incomes = 0
+        self.expenditures = 0
+        self.net_incomes = 0
+        self.net_expenditures = 0
+        self.balance = 0
+
+    def extract_summary(self):
+        with open(self.path, 'r', encoding='gbk') as f:
+            lines = f.readlines()
+            self.incomes = float(re.findall(r'笔 (.+?)元', lines[8])[0])
+            self.expenditures = float(re.findall(r'笔 (.+?)元', lines[9])[0])
+            self.balance = round(self.incomes - self.expenditures, 2)
+            return
+
+    def read_data_alipay(self):  # 获取支付宝数据
+        d_alipay = pd.read_csv(self.path, header=22, encoding='gbk')  # 数据获取，支付宝
+        selected_columns = ['交易时间', '收/支', '交易状态', '交易对方', '商品说明', '金额', '收/付款方式']
+        d_alipay = d_alipay[selected_columns]  # 按顺序提取所需列
+        d_alipay = strip_in_data(d_alipay)  # 去除列名与数值中的空格。
+        d_alipay['交易时间'] = pd.to_datetime(d_alipay['交易时间'])  # 数据类型更改
+        d_alipay['金额'] = d_alipay['金额'].astype('float64')  # 数据类型更改
+        d_alipay = d_alipay.drop(d_alipay[d_alipay['收/支'] == ''].index)  # 删除'收/支'为空的行
+        d_alipay.rename(columns={'交易状态': '支付状态', '商品说明': '商品', '收/付款方式': '支付方式'},
+                        inplace=True)  # 修改列名称
+        d_alipay.insert(1, '来源', "支付宝", allow_duplicates=True)  # 添加支付宝来源标识
+        d_alipay.insert(4, '类型', "商户消费", allow_duplicates=True)  # 添加类型标识
+
+        # 打印成功信息
+        len2 = len(d_alipay)
+        print("成功读取 " + str(len2) + " 条「支付宝」账单数据\n")
+
+
+
+        return d_alipay
+
+    def load_data_alipay(self):
+        """
+        过滤有退款的交易。条件是：收/支=不计收支 & 支付状态=交易关闭
+        :return: pd.DataFrame
+        """
+        self.extract_summary()
+        data_alipay = self.read_data_alipay()
+        data_alipay = data_alipay.apply(clean_alipay_payment_method, axis='columns')
+        data_alipay = data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
+
+        # 校验数据
+        actual_incomes = sum(data_alipay[data_alipay['收/支'] == '收入']['金额'])
+        actual_expenditures = sum(data_alipay[data_alipay['收/支'] == '支出']['金额'])
+
+        if not (np.isclose(self.incomes, actual_incomes) and np.isclose(self.expenditures, actual_expenditures)):
+            warnings.warn('支付宝账单数据读取异常，请检查数据！', UserWarning)
+        return data_alipay
 
 
 def write_record_data(merged):
@@ -140,21 +207,6 @@ def clean_weixin_is_refunded(row):
     return row
 
 
-def read_data_alipay(path):  # 获取支付宝数据
-    d_alipay = pd.read_csv(path, header=22, encoding='gbk')  # 数据获取，支付宝
-    selected_columns = ['交易时间', '收/支', '交易状态', '交易对方', '商品说明', '金额', '收/付款方式']
-    d_alipay = d_alipay[selected_columns]  # 按顺序提取所需列
-    d_alipay = strip_in_data(d_alipay)  # 去除列名与数值中的空格。
-    d_alipay['交易时间'] = pd.to_datetime(d_alipay['交易时间'])  # 数据类型更改
-    d_alipay['金额'] = d_alipay['金额'].astype('float64')  # 数据类型更改
-    d_alipay = d_alipay.drop(d_alipay[d_alipay['收/支'] == ''].index)  # 删除'收/支'为空的行
-    d_alipay.rename(columns={'交易状态': '支付状态', '商品说明': '商品', '收/付款方式': '支付方式'},
-                    inplace=True)  # 修改列名称
-    d_alipay.insert(1, '来源', "支付宝", allow_duplicates=True)  # 添加支付宝来源标识
-    d_alipay.insert(4, '类型', "商户消费", allow_duplicates=True)  # 添加类型标识
-    len2 = len(d_alipay)
-    print("成功读取 " + str(len2) + " 条「支付宝」账单数据\n")
-    return process_data_alipay(d_alipay)
 
 
 def clean_alipay_payment_method(row):
@@ -169,14 +221,7 @@ def clean_alipay_payment_method(row):
     return row
 
 
-def process_data_alipay(data_alipay):
-    """
-    过滤有退款的交易。条件是：收/支=不计收支 & 支付状态=交易关闭
-    :param data_alipay: pd.DataFrame
-    :return: pd.DataFrame
-    """
-    data_alipay = data_alipay.apply(clean_alipay_payment_method, axis='columns')
-    return data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
+
 
 
 def read_data_bank(path):
