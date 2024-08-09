@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-import openpyxl
 import re
 import warnings
 import pandas as pd
@@ -48,8 +47,6 @@ class WeixinTransactions:
         self.net_expenditures = 0
         self.balance = 0
 
-
-
     def extract_summary(self):
         # 校验数据
         with open(self.path, 'r', encoding='utf-8') as f:
@@ -58,7 +55,6 @@ class WeixinTransactions:
             self.expenditures = float(re.findall(r'笔 (.+?)元', lines[8])[0])
             self.balance = round(self.incomes - self.expenditures, 2)
         return
-
 
     def read_data_weixin(self):  # 获取微信数据
         d_weixin = pd.read_csv(self.path, header=16, skipfooter=0, encoding='utf-8')  # 数据获取，微信
@@ -136,8 +132,6 @@ class AlipayTransactions:
         len2 = len(d_alipay)
         print("成功读取 " + str(len2) + " 条「支付宝」账单数据\n")
 
-
-
         return d_alipay
 
     def load_data_alipay(self):
@@ -207,8 +201,6 @@ def clean_weixin_is_refunded(row):
     return row
 
 
-
-
 def clean_alipay_payment_method(row):
     """
     去掉支付宝的支付方式后缀，整理格式例如：'光大银行信用卡(5851)'
@@ -219,9 +211,6 @@ def clean_alipay_payment_method(row):
         row['支付方式'] = '余额宝'
     row['支付方式'] = str(row['支付方式'])[:13]
     return row
-
-
-
 
 
 def read_data_bank(path):
