@@ -20,7 +20,7 @@ def load_data():
     # 检查账单
     check_bill_data(data_weixin)
     check_bill_data(data_alipay)
-    check_bill_data(data_bank)
+    # check_bill_data(data_bank)
 
     # 合并数据
     data_merge = pd.concat([data_weixin, data_alipay], axis=0)
@@ -43,8 +43,6 @@ class WeixinTransactions:
         self.path = ''
         self.incomes = 0
         self.expenditures = 0
-        self.net_incomes = 0
-        self.net_expenditures = 0
         self.balance = 0
 
     def extract_summary(self):
@@ -84,17 +82,6 @@ class WeixinTransactions:
 
         # 处理【支付方式】和【金额】
         data = data.apply(clean_weixin_payment_method, axis='columns')
-        data = data.apply(clean_weixin_is_refunded, axis='columns')
-
-        # 校验数据
-        balance = sum(data['amount'])
-        if balance != self.balance:
-            warnings.warn('冲账数据有误，请检查数据！', UserWarning)
-
-        # 改写数据
-        self.net_incomes = sum(data[data['收/支'] == '收入']['amount'])
-        self.net_expenditures = -sum(data[data['收/支'] == '支出']['amount'])
-
         return data
 
 
@@ -103,8 +90,6 @@ class AlipayTransactions:
         self.path = ''
         self.incomes = 0
         self.expenditures = 0
-        self.net_incomes = 0
-        self.net_expenditures = 0
         self.balance = 0
 
     def extract_summary(self):
@@ -142,6 +127,8 @@ class AlipayTransactions:
         self.extract_summary()
         data_alipay = self.read_data_alipay()
         data_alipay = data_alipay.apply(clean_alipay_payment_method, axis='columns')
+
+        # 过滤数据
         data_alipay = data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
 
         # 校验数据
@@ -181,12 +168,22 @@ def clean_weixin_payment_method(row):
     return row
 
 
-def clean_weixin_is_refunded(row):
+def clean_amount(row):
     """
-    会改变数据条数和收支金额
+    处理有退款交易，将当前状态为已全额退款或已退款的交易，增加枚举值：不计收支
+    添加金额的正负号
+
+    微信中性交易：充值/提现/理财通购买/零钱通存取/信用卡还款等交易，将计入中性交易
+    支付宝不计收支：充值提现、账户转存或者个人设置收支等不计入为收入或者支出，记为不计收支类；
+
+    微信枚举值：'已全额退款', '已退款', '退款成功', '提现已到账', '还款成功'
+    支付宝枚举值：'交易关闭'
     :param row: pa.DataFrame
     :return:
     """
+    if row['来源'] != '微信':
+        return row
+
     status = row['支付状态']
     amount = row['金额']
     match = re.search(r"(已退款)[(]?￥(\d+\.\d+)[)]?", status)
@@ -194,6 +191,7 @@ def clean_weixin_is_refunded(row):
         amount -= float(match.group(2))
     elif status == '已全额退款':  # 如果全额退款
         if amount != 11:  # TODO: 开发自动成对冲账功能
+            row['收/支'] = '不计收支'
             amount = 0
 
     # 考虑收支添加符号
@@ -204,7 +202,6 @@ def clean_weixin_is_refunded(row):
 def clean_alipay_payment_method(row):
     """
     去掉支付宝的支付方式后缀，整理格式例如：'光大银行信用卡(5851)'
-    :param payment: str
     :return: str
     """
     if row['收/支'] == '收入' and pd.isnull(row['支付方式']):
@@ -221,6 +218,11 @@ def read_data_bank(path):
 
 
 def add_cols(data):  # 增加3列数据
+    """
+    增加三列，逻辑1表示收支，逻辑2表示是否不计入收支
+    :param data:
+    :return:
+    """
     # 逻辑1：取值-1 or 1。-1表示支出，1表示收入。
     data.insert(8, '逻辑1', -1, allow_duplicates=True)  # 插入列，默认值为-1
     for index in range(len(data.iloc[:, 2])):  # 遍历第3列的值，判断为收入，则改'逻辑1'为1
@@ -260,9 +262,43 @@ def add_cols(data):  # 增加3列数据
     data['乘后金额'] = data['金额'] * data['逻辑1'] * data['逻辑2']
 
     # 不计入本月收支
-    data['是否不计入'] = 0
-    data['是否冲账'] = 0
+    data = data.apply(clean_amount, axis='columns')
     return data
+
+
+def clean_amount(row):
+    """
+    处理有退款交易，将当前状态为已全额退款或已退款的交易，增加枚举值：不计收支
+    添加金额的正负号
+
+    微信中性交易：充值/提现/理财通购买/零钱通存取/信用卡还款等交易，将计入中性交易
+    支付宝不计收支：充值提现、账户转存或者个人设置收支等不计入为收入或者支出，记为不计收支类；
+
+    微信枚举值：'已全额退款', '已退款', '退款成功', '提现已到账', '还款成功'
+    支付宝枚举值：'交易关闭'
+    :param row: pa.DataFrame
+    :return:
+    """
+    amount = row['金额']
+
+    # 修改微信 不计入收支
+    if row['来源'] == '微信' and row['支付状态'] == '已全额退款':  # 如果全额退款
+        if amount != 11:  # TODO: 开发自动成对冲账功能
+            row['收/支'] = '不计收支'
+
+    # 修改微信 部分退款
+    match = re.search(r"(已退款)[(]?￥(\d+\.\d+)[)]?", row['支付状态'])
+    if match:  # 如果部分退款
+        amount -= float(match.group(2))
+
+    # 考虑收支添加符号
+    if row['收/支'] == '收入':
+        row['amount'] = amount
+    elif row['收/支'] == '支出':
+        row['amount'] = -amount
+    else:
+        row['amount'] = 0
+    return row
 
 
 def check_bill_data(bill_data, is_mute=False):
@@ -280,9 +316,8 @@ def check_bill_data(bill_data, is_mute=False):
     支出金额：￥{}
     收入金额：￥{}
     结余金额：￥{}
-    {}
     """.format(data_resource, bill_date_range, bill_num, bill_summary['支出'], bill_summary['收入'],
-               bill_summary['收入'] - bill_summary['支出'], bill_data.groupby(['支付方式', '收/支'])['金额'].sum())
+               bill_summary['收入'] - bill_summary['支出'])
 
     if not is_mute:
         print(summary)
