@@ -20,13 +20,90 @@ def load_data():
     # 检查账单
     check_bill_data(data_weixin)
     check_bill_data(data_alipay)
-    # check_bill_data(data_bank)
+    check_bill_data(data_bank)
 
     # 合并数据
-    data_merge = pd.concat([data_weixin, data_alipay], axis=0)
-    data_merge = pd.concat([data_merge, data_bank], axis=0)  # 上下拼接合并表格
-    data_merge = add_cols(data_merge)  # 新增 逻辑、月份、乘后金额 3列
-    data_merge = data_merge.sort_values(by='交易时间', axis=0, ascending=False)
+    data_merge = pd.concat([data_weixin, data_alipay], axis=0, ignore_index=True)
+    data_merge = pd.concat([data_merge, data_bank], axis=0, ignore_index=True)  # 上下拼接合并表格
+    data_merge = data_merge.sort_values(by='交易时间', axis=0, ascending=False).reset_index()
+    # data_merge.to_csv('data/merged_data.csv', encoding='gbk')
+
+    # 标记并修改数据
+    col_values = [0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  1,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  ]
+    es_df = EqualSumDataFrame(data_merge)
+    es_df.add_cols()
+    es_df.update_struct_balance(col_values)
     print("已自动计算乘后金额和交易月份，已合并数据")
 
     # 检查合并数据
@@ -44,6 +121,7 @@ class WeixinTransactions:
         self.incomes = 0
         self.expenditures = 0
         self.balance = 0
+        self.data_weixin = pd.DataFrame()
 
     def extract_summary(self):
         # 校验数据
@@ -82,6 +160,7 @@ class WeixinTransactions:
 
         # 处理【支付方式】和【金额】
         data = data.apply(clean_weixin_payment_method, axis='columns')
+        self.data_weixin = data
         return data
 
 
@@ -91,6 +170,7 @@ class AlipayTransactions:
         self.incomes = 0
         self.expenditures = 0
         self.balance = 0
+        self.data_alipay = pd.DataFrame()
 
     def extract_summary(self):
         with open(self.path, 'r', encoding='gbk') as f:
@@ -137,6 +217,8 @@ class AlipayTransactions:
 
         if not (np.isclose(self.incomes, actual_incomes) and np.isclose(self.expenditures, actual_expenditures)):
             warnings.warn('支付宝账单数据读取异常，请检查数据！', UserWarning)
+
+        self.data_alipay = data_alipay
         return data_alipay
 
 
@@ -217,56 +299,7 @@ def read_data_bank(path):
     return data
 
 
-def add_cols(data):  # 增加3列数据
-    """
-    增加三列，逻辑1表示收支，逻辑2表示是否不计入收支
-    :param data:
-    :return:
-    """
-    # 逻辑1：取值-1 or 1。-1表示支出，1表示收入。
-    data.insert(8, '逻辑1', -1, allow_duplicates=True)  # 插入列，默认值为-1
-    for index in range(len(data.iloc[:, 2])):  # 遍历第3列的值，判断为收入，则改'逻辑1'为1
-        if data.iloc[index, 2] == '收入':
-            data.iloc[index, 8] = 1
-
-        # update 2021/12/29: 修复支付宝理财收支逻辑bug
-        elif data.iloc[index, 5] == '蚂蚁财富-蚂蚁（杭州）基金销售有限公司' and '卖出' in data.iloc[index, 6]:
-            data.iloc[index, 8] = 1
-        elif data.iloc[index, 5] == '蚂蚁财富-蚂蚁（杭州）基金销售有限公司' and '转换至' in data.iloc[index, 6]:
-            data.iloc[index, 8] = 0
-        elif data.iloc[index, 2] == '其他' and '收益发放' in data.iloc[index, 6]:
-            data.iloc[index, 8] = 1
-        elif data.iloc[index, 2] == '其他' and '现金分红' in data.iloc[index, 6]:
-            data.iloc[index, 8] = 1
-        elif data.iloc[index, 2] == '其他' and '买入' in data.iloc[index, 6]:
-            data.iloc[index, 8] = -1
-        elif data.iloc[index, 2] == '其他':
-            data.iloc[index, 8] = 0
-
-    # 逻辑2：取值0 or 1。1表示计入，0表示不计入。
-    data.insert(9, '逻辑2', 1, allow_duplicates=True)  # 插入列，默认值为1
-    for index in range(len(data.iloc[:, 3])):  # 遍历第4列的值，判断为资金流动，则改'逻辑2'为0
-        col3 = data.iloc[index, 3]
-        if (col3 == '提现已到账') or (col3 == '已全额退款') or (col3 == '已退款') or (col3 == '退款成功') or (
-                col3 == '还款成功') or (
-                col3 == '交易关闭'):
-            data.iloc[index, 9] = 0
-
-    # 月份
-    data.insert(1, '月份', 0, allow_duplicates=True)  # 插入列，默认值为0
-    for index in range(len(data.iloc[:, 0])):
-        time = data.iloc[index, 0]
-        data.iloc[index, 1] = time.month  # 访问月份属性的值，赋给这月份列
-
-    # 乘后金额
-    data['乘后金额'] = data['金额'] * data['逻辑1'] * data['逻辑2']
-
-    # 不计入本月收支
-    data = data.apply(clean_amount, axis='columns')
-    return data
-
-
-def clean_amount(row):
+def clean_record_amount(row):
     """
     处理有退款交易，将当前状态为已全额退款或已退款的交易，增加枚举值：不计收支
     添加金额的正负号
@@ -322,3 +355,70 @@ def check_bill_data(bill_data, is_mute=False):
     if not is_mute:
         print(summary)
     return bill_date_range
+
+
+class EqualSumDataFrame:
+    def __init__(self, df, col1='金额', col2='amount'):
+        """
+        初始化 EqualSumDataFrame 对象
+
+        参数:
+        - data: dict, 初始化 DataFrame 的数据
+        - col1: str, 第一列的列名
+        - col2: str, 第二列的列名
+        """
+        self.df = pd.DataFrame(df)
+        self.col1 = col1
+        self.col2 = col2
+        self.balance = np.round(self.df[self.df['收/支'] == '收入'][self.col1].sum() - self.df[self.df['收/支'] == '支出'][self.col1].sum(), 2)
+        self.incomes = 0
+        self.expenditures = 0
+
+    def update_sums(self):
+        """
+        更新收入和、支出和
+        """
+        self.incomes = np.round(self.df[self.df['收/支'] == '收入'][self.col2].sum(), 2)
+        self.expenditures = np.round(self.df[self.df['收/支'] == '支出'][self.col2].sum(),2)
+
+    def _check_equal_sum(self):
+        """
+        检查两列的列和是否相等
+        """
+        if not np.isclose(self.balance, self.incomes + self.expenditures):
+            raise ValueError(f"{self.col1} 和 {self.col2} 列和不相等")
+
+    def add_cols(self):  # 增加3列数据
+        """
+        增加两列：是否不计入收支和是否冲账，并检查列和
+        """
+        self.df = self.df.apply(clean_record_amount, axis='columns')  # 增加不计收支列，修改数据
+        self.df.insert(self.df.columns.tolist().index('金额'), '是否冲账', 0, allow_duplicates=True)  # 增加是否冲账列
+        self.update_sums()
+        self._check_equal_sum()
+
+    def update_struct_balance(self, col_values):
+        """
+        更新特定位置的值并检查列和
+        :param col_values: 要更新的列值
+        :return:
+        """
+        # 修改是否冲账
+        self.df['是否冲账'] = col_values
+
+        # 修改金额
+        remaining_amount = self.df['amount'][self.df['是否冲账'] == 1].sum()
+        if remaining_amount >= 0:
+            index = self.df[(self.df['是否冲账'] == 1) & (self.df['收/支'] == '收入')].index[0]
+        else:
+            index = self.df[(self.df['是否冲账'] == 1) & (self.df['收/支'] == '支出')].index[0]
+
+        self.df.loc[self.df['是否冲账'] == 1, 'amount'] = 0
+        self.df.at[index, 'amount'] = remaining_amount
+        self.update_sums()
+        self._check_equal_sum()
+
+    def __repr__(self):
+        return self.df.__repr__()
+
+

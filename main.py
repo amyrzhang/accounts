@@ -9,7 +9,6 @@
 
 
 import tkinter.filedialog
-import datetime
 import msvcrt
 
 from loader import *
@@ -60,6 +59,7 @@ def frontend():
 
 if __name__ == '__main__':
     record = load_data()
+
     exit(0)
 
     # 写入账本
