@@ -7,11 +7,11 @@
 # Finished:    2021/1/7 20:30
 # Author:      AmyZhang
 
-
+import pandas as pd
 import tkinter.filedialog
 import msvcrt
-
-from loader import *
+import os
+from loader import WeixinTransactions, AlipayTransactions, Transactions, read_data_bank
 
 
 def frontend():
@@ -48,37 +48,180 @@ def frontend():
     if cancel_wx == 1:
         data_wx = pd.DataFrame()
     else:
-        data_wx = read_data_wx(path_wx)  # 读数据
+        # data_wx = read_data_wx(path_wx)  # 读数据
+        pass
     if cancel_zfb == 1:
         data_zfb = pd.DataFrame()
     else:
-        data_zfb = read_data_zfb(path_zfb)  # 读数据
-
+        # data_zfb = read_data_zfb(path_zfb)  # 读数据
+        pass
     return data_wx, data_zfb, path_write
 
 
 if __name__ == '__main__':
-    record = load_data()
+    # 读取数据
+    recorder = WeixinTransactions('data/微信支付账单(20240701-20240801).csv')
+    data_weixin = recorder.load_data_weixin()
+    recorder = AlipayTransactions('data/alipay_record_20240801_165204.csv')
+    data_alipay = recorder.load_data_alipay()  # 读数据
+    data_bank = read_data_bank('data/bank_record.csv')
 
-    exit(0)
+    # 标记并修改数据
+    es_df = Transactions(data_weixin, data_alipay, data_bank)
+    es_df.check_bank_account(12316.84)
+    if not os.path.exists('data/merged_data.xlsx'):
+        es_df.df.to_excel('data/merged_data.xlsx', index=False)
 
-    # 写入账本
-    merge_list = data_merge.values.tolist()  # 格式转换，DataFrame->List
-    workbook = openpyxl.load_workbook(path_account)  # openpyxl读取账本文件
-    sheet = workbook['明细']
-    maxrow = sheet.max_row  # 获取最大行
-    print('\n「明细」 sheet 页已有 ' + str(maxrow) + ' 行数据，将在末尾写入数据')
-    for row in merge_list:
-        sheet.append(row)  # openpyxl写文件
+    # 增加 是否冲账数据 和 类别数据
+    col_values = [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ]
+    category_values = [
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '交通',
+        '餐饮',
+        '餐饮',
+        '购物',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '购物',
+        '购物',
+        '购物',
+        '餐饮',
+        '购物',
+        '购物',
+        '购物',
+        '购物',
+        '购物_电子烟',
+        '休闲娱乐',
+        '购物',
+        '购物',
+        '工资',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '购物',
+        '购物',
+        '餐饮',
+        '购物',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '交通',
+        '交通',
+        '购物',
+        '交通',
+        '二手交易',
+        '交通',
+        '餐饮',
+        '通讯',
+        '购物',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '购物',
+        '通讯',
+        '购物',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '餐饮',
+        '通讯',
+        '交通',
+        '购物',
+        '购物',
+        '餐饮',
+        '购物',
+        '餐饮',
+        '餐饮',
+        '购物',
+        '工资'
+    ]
+    col1 = {'是否冲账': col_values, 'category': category_values}
+    es_df.update_columns(col1)
+    print(es_df.balance, es_df.sums, es_df.category_sums)
 
-    # 在最后1行写上导入时间，作为分割线
-    now = datetime.datetime.now()
-    now = '👆导入时间：' + str(now.strftime('%Y-%m-%d %H:%M:%S'))
-    break_lines = [now, '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']
-    sheet.append(break_lines)
+    es_df.write()  # 写入数据
 
-    # 保存可视化数据
-    workbook.save(path_write)
-    print("\n成功将数据写入到 " + path_write)
-    print("\n运行成功！write successfully!    按任意键退出")
-    # ord(msvcrt.getch())
