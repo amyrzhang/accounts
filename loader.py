@@ -128,37 +128,6 @@ def clean_weixin_payment_method(row):
     return row
 
 
-def clean_amount(row):
-    """
-    处理有退款交易，将当前状态为已全额退款或已退款的交易，增加枚举值：不计收支
-    添加金额的正负号
-
-    微信中性交易：充值/提现/理财通购买/零钱通存取/信用卡还款等交易，将计入中性交易
-    支付宝不计收支：充值提现、账户转存或者个人设置收支等不计入为收入或者支出，记为不计收支类；
-
-    微信枚举值：'已全额退款', '已退款', '退款成功', '提现已到账', '还款成功'
-    支付宝枚举值：'交易关闭'
-    :param row: pa.DataFrame
-    :return:
-    """
-    if row['来源'] != '微信':
-        return row
-
-    status = row['支付状态']
-    amount = row['金额']
-    match = re.search(r"(已退款)[(]?￥(\d+\.\d+)[)]?", status)
-    if match:  # 如果部分退款
-        amount -= float(match.group(2))
-    elif status in ('已全额退款', '对方已退还'):  # 如果全额退款
-        if amount != 11:  # TODO: 开发自动成对冲账功能
-            row['收/支'] = '不计收支'
-            amount = 0
-
-    # 考虑收支添加符号
-    row['amount'] = amount if row['收/支'] == '收入' else -amount
-    return row
-
-
 def clean_alipay_payment_method(row):
     """
     去掉支付宝的支付方式后缀，整理格式例如：'光大银行信用卡(5851)'
@@ -190,23 +159,18 @@ def process_excluded_row(row):
     :param row: pa.DataFrame
     :return:
     """
-    # 修改微信 全额退款 不计入收支
-    if row['来源'] == '微信' and row['支付状态'] == '已全额退款':  # 如果全额退款
-        if row['金额'] != 11:  # TODO: 开发自动成对冲账功能
-            row['收/支'] = '不计收支'
+    status = row['支付状态']
+    amount = row['金额']
+    match = re.search(r"(已退款)[(]?￥(\d+\.\d+)[)]?", status)
 
-    # 修改微信 部分退款
-    match = re.search(r"(已退款)[(]?￥(\d+\.\d+)[)]?", row['支付状态'])
     if match:  # 如果部分退款
-        row['amount'] = row['金额'] - float(match.group(2))
+        amount -= float(match.group(2))
+    elif status in ('已全额退款', '对方已退还'):  # 如果全额退款
+        if amount != 11:  # TODO: 开发自动成对冲账功能
+            row['收/支'] = '不计收支'
+            amount = 0
 
-    # 考虑收支添加符号
-    if row['收/支'] == '收入':
-        row['amount'] = row['金额']
-    elif row['收/支'] == '支出':
-        row['amount'] = -row['金额']
-    else:
-        row['amount'] = 0
+    row['amount'] = amount if row['收/支'] == '收入' else -amount  # 考虑收支添加符号
     return row
 
 
@@ -291,19 +255,24 @@ class Transactions:
         """返回 DataFrame 的字符串表示"""
         return self.df.__repr__()
 
-    def update_columns(self, column_updates):
+    def update_columns(self):
         """
-        更新列值
-        :param column_updates: 其中键是要更新的列名，值是要设置的新值
-        :return:
+        更新列值，其中键是要更新的列名，值是要设置的新值
         """
-        for col, new_value in column_updates.items():
+        for col, new_value in self.labeled_dict.items():
             if col in self._merged_df.columns:
                 self._merged_df[col] = new_value
 
         # 将修改后的 DataFrame 重新设置回 df 属性，以触发 setter
         self.df = settle_transactions(self._merged_df)
         self._check_equal_sum()
+
+    @property
+    def labeled_dict(self):
+        """需要手动标记存入数据"""
+        file_path = 'labeled_record_{}.xlsx'.format(self.date_range)
+        labeled = pd.read_excel(file_path, usecols=['是否冲账', 'category'])
+        return labeled.to_dict(orient='list')
 
     @property
     def balance(self):
@@ -318,6 +287,12 @@ class Transactions:
     @property
     def category_sums(self):
         return self.df.groupby(['收/支', 'category'])['amount'].sum().sort_values()
+
+    @property
+    def date_range(self):
+        max_date = self.df['交易时间'].max().strftime('%Y%m%d')
+        min_date = self.df['交易时间'].min().strftime('%Y%m%d')
+        return min_date + '_' + max_date
 
     def _check_equal_sum(self):
         """
@@ -355,8 +330,6 @@ class Transactions:
         self._check_equal_sum()
 
     def write(self):
-        max_date = self.df['交易时间'].max().strftime('%Y%m%d')
-        min_date = self.df['交易时间'].min().strftime('%Y%m%d')
-        file_name = 'output/record_{}_{}'.format(min_date, max_date)
+        file_name = 'output/record_{}'.format(self.date_range)
         self.df.to_csv(file_name + '.csv', index=False)
         self.df.to_excel(file_name + '.xlsx', index=False)
