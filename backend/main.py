@@ -28,4 +28,4 @@ if __name__ == '__main__':
     es_df.update_columns()
     print(es_df.balance, es_df.sums, es_df.category_sums)
 
-    es_df.write()  # 写入数据
+    # es_df.write()  # 写入数据
