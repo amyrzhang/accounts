@@ -10,8 +10,8 @@ app = Flask(__name__)
 CORS(app)  # 允许所有来源
 
 
-@app.route('/read-csv')
-def read_csv():
+@app.route('/api/data/transactions.json', methods=['GET'])
+def get_transactions():
     df = pd.read_csv(
         './output/record_20240701_20240731.csv',
         encoding='utf-8',
@@ -34,12 +34,6 @@ def read_csv():
         },
     )
     return jsonify(df.to_dict(orient='records'))
-
-
-# 示例路由：获取数据
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    return read_csv()
 
 
 @app.route('/api/data/monthly', methods=['GET'])
