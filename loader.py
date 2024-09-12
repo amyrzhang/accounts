@@ -26,12 +26,19 @@ class WeixinTransactions:
         self._balance = 0.0
         self.incomes = 0.0
         self.expenditures = 0.0
-        self.data_weixin = pd.DataFrame()
         self.extract_balance()
 
     @property
     def balance(self):
         return self._balance
+
+    @property
+    def df(self):
+        """将已存入零钱的交易，交易账户改为“零钱”"""
+        df = self.read_data_weixin()  # 读取数据
+        df = df.apply(clean_weixin_payment_method, axis='columns')  # 处理【支付方式】和【金额】
+        check_balance(self.balance, df)  # 校验数据
+        return df
 
     def extract_balance(self):
         """
@@ -46,21 +53,31 @@ class WeixinTransactions:
 
     def read_data_weixin(self):  # 获取微信数据
         d_weixin = pd.read_csv(self.path, header=16, skipfooter=0, encoding='utf-8')  # 数据获取，微信
+        # 选择列和数据类型
         selected_columns = ['交易时间', '收/支', '当前状态', '交易类型', '交易对方', '商品', '金额(元)', '支付方式']
         d_weixin = d_weixin[selected_columns]  # 按顺序提取所需列
         d_weixin.rename(columns={'当前状态': '支付状态', '交易类型': '类型', '金额(元)': '金额'}, inplace=True)  # 修改列名称
         d_weixin = strip_in_data(d_weixin)  # 去除列名与数值中的空格。
         d_weixin['交易时间'] = pd.to_datetime(d_weixin['交易时间'])  # 数据类型更改
         d_weixin['金额'] = d_weixin['金额'].astype('float64')  # 数据类型更改
+
+        # 增加列
         d_weixin.insert(1, '来源', "微信", allow_duplicates=True)  # 添加微信来源标识
+        d_weixin.insert(d_weixin.columns.tolist().index('金额'), '是否冲账', 0)  # 增加是否冲账列
+        d_weixin.insert(d_weixin.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
+
+        # 更新数据
+        d_weixin = d_weixin.apply(process_excluded_row, axis='columns')  # 修改收支列和增加amount列
+        d_weixin['category'] = d_weixin.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
         return d_weixin
 
-    def load_data_weixin(self):
-        """将已存入零钱的交易，交易账户改为“零钱”"""
-        self.data_weixin = self.read_data_weixin()  # 读取数据
-        self.data_weixin = self.data_weixin.apply(clean_weixin_payment_method, axis='columns')  # 处理【支付方式】和【金额】
-        check_balance(self.balance, self.data_weixin)  # 校验数据
-        return self.data_weixin
+    def write_data(self):
+        """
+        将数据写入文件
+        """
+        with open('output/record_20240701_20240731.csv', 'a', newline='', encoding='utf-8') as f:
+            self.df.to_csv(f, header=f.tell() == 0, index=False)
+
 
 
 class AlipayTransactions:
@@ -69,7 +86,7 @@ class AlipayTransactions:
         self.incomes = 0
         self.expenditures = 0
         self._balance = 0
-        self.data_alipay = pd.DataFrame()
+        self.df = pd.DataFrame()
         self.extract_balance()
 
     @property
@@ -107,9 +124,9 @@ class AlipayTransactions:
         data_alipay = data_alipay.apply(clean_alipay_payment_method, axis='columns')
 
         # 过滤数据
-        self.data_alipay = data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
-        check_balance(self.balance, self.data_alipay)
-        return self.data_alipay
+        self.df = data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
+        check_balance(self.balance, self.df)
+        return self.df
 
 
 def strip_in_data(data):  # 把列名中和数据中首尾的空格都去掉。
@@ -203,7 +220,7 @@ def settle_transactions(data):
     更新 'amount' 列的数据，其中 '是否冲账' 列为 1 的行将被修改。
 
     参数:
-    - data: pd.DataFrame, 包含 '是否冲账' 和 '收/支' 列的数据框
+    - uploads: pd.DataFrame, 包含 '是否冲账' 和 '收/支' 列的数据框
     """
     remaining_amount = data.loc[data['是否冲账'] == 1, 'amount'].sum()
 
@@ -225,7 +242,7 @@ class Transactions:
         初始化 EqualSumDataFrame 对象
 
         参数:
-        - data: dict, 初始化 DataFrame 的数据
+        - uploads: dict, 初始化 DataFrame 的数据
         - col1: str, 第一列的列名
         - col2: str, 第二列的列名
         """

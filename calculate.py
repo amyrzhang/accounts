@@ -35,8 +35,8 @@ class Analysis:
     @property
     def monthly_summary(self):
         return {
-            'expenditure': self.sums['收入'],
-            'income': self.sums['支出'],
+            'expenditure': -self.sums['支出'],
+            'income': self.sums['收入'],
             'balance': self.balance
         }
 

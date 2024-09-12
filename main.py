@@ -13,11 +13,14 @@ from loader import WeixinTransactions, AlipayTransactions, Transactions, read_da
 
 if __name__ == '__main__':
     # 读取数据
-    recorder = WeixinTransactions('data/微信支付账单(20240701-20240801).csv')
-    data_weixin = recorder.load_data_weixin()
-    recorder = AlipayTransactions('data/alipay_record_20240801_165204.csv')
+    recorder = WeixinTransactions('uploads/微信支付账单(20240701-20240801).csv')
+    data_weixin = recorder.df
+    recorder.write_data()
+
+    exit(0)
+    recorder = AlipayTransactions('uploads/alipay_record_20240801_165204.csv')
     data_alipay = recorder.load_data_alipay()  # 读数据
-    data_bank = read_data_bank('data/bank_record_20240701_20240731.csv')
+    data_bank = read_data_bank('uploads/bank_record_20240701_20240731.csv')
 
     # 标记并修改数据
     es_df = Transactions(data_weixin, data_alipay, data_bank)
