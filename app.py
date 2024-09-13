@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from flask import Flask, request, send_from_directory, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-from werkzeug.utils import secure_filename
 import os
 
 from calculate import Analysis
@@ -18,7 +17,7 @@ CORS(app)  # 允许所有来源
 @app.route('/api/data/transactions.json', methods=['GET'])
 def get_transactions():
     df = pd.read_csv(
-        './output/record_20240701_20240731.csv',
+        'output/record_20240701_20240731.csv',
         encoding='utf-8',
         usecols=range(11)
     )
