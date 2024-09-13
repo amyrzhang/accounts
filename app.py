@@ -4,9 +4,11 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
 import os
+import re
 
-from calculate import Analysis
-from loader import WeixinTransactions
+from calculate import DataAnalyzer
+from uploader import WeixinTransactions
+from uploader import write_db
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -42,14 +44,7 @@ def get_transactions():
 
 @app.route('/api/data/monthly', methods=['GET'])
 def get_monthly_report():
-    return jsonify(Analysis().monthly_summary)
-
-
-@app.route('/api/submit', methods=['POST'])
-def submit_data():
-    received_data = request.json
-    print("Received uploads:", received_data)
-    return jsonify({"message": "Data received", "status": "success"})
+    return jsonify(DataAnalyzer().monthly_summary)
 
 
 @app.route('/upload', methods=['POST'])
@@ -65,8 +60,7 @@ def upload_file():
         if os.path.exists(file_path):
             return f"File already exists: {filename}", 409
         file.save(file_path)
-        wxt = WeixinTransactions(file_path)  # 写入数据
-        wxt.write_data()
+        write_db(filename)
         return f"File saved successfully as {filename}", 200
 
 

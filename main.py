@@ -9,16 +9,19 @@
 
 import pandas as pd
 import os
-from loader import WeixinTransactions, AlipayTransactions, Transactions, read_data_bank
+from uploader import WeixinTransactions, AlipayTransactions, Transactions, read_data_bank
 
 if __name__ == '__main__':
     # 读取数据
+    recorder = AlipayTransactions('uploads/alipay_record_20240801_165204.csv')
+    a = recorder.df
+
     recorder = WeixinTransactions('uploads/微信支付账单(20240701-20240801).csv')
     data_weixin = recorder.df
-    recorder.write_data()
+    # recorder.write_data()
 
     exit(0)
-    recorder = AlipayTransactions('uploads/alipay_record_20240801_165204.csv')
+
     data_alipay = recorder.load_data_alipay()  # 读数据
     data_bank = read_data_bank('uploads/bank_record_20240701_20240731.csv')
 
@@ -31,4 +34,4 @@ if __name__ == '__main__':
     es_df.update_columns()
     print(es_df.balance, es_df.sums, es_df.category_sums)
 
-    es_df.write()  # 写入数据
+    es_df.write_db()  # 写入数据
