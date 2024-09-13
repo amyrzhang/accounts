@@ -5,6 +5,7 @@ import re
 import pandas as pd
 import os
 import json
+import chardet
 
 
 def write_db(filename):
@@ -29,37 +30,67 @@ def check_balance(balance, df):
 
 
 class Transactions:
-    def __init__(self, df1, df2, df3):
-        """
-        初始化 EqualSumDataFrame 对象
+    def __init__(self, path):
+        self.path = path
 
-        参数:
-        - uploads: dict, 初始化 DataFrame 的数据
-        - col1: str, 第一列的列名
-        - col2: str, 第二列的列名
-        """
-        self.df1 = df1
-        self.df2 = df2
-        self.df3 = df3
-        self._merged_df = self._concat_dfs()
-        self._check_equal_sum()
+    @property
+    def balance(self):
+        with open(self.path, 'r', encoding=self.encoding) as f:
+            text = f.read()
+            # 定义正则表达式
+            income_pattern = r'收入：\d+笔\s+(\d+\.\d+)元'
+            expense_pattern = r'支出：\d+笔\s+(\d+\.\d+)元'
+            # 搜索并提取收入和支出金额
+            income_match = re.search(income_pattern, text)
+            if income_match:
+                incomes = float(income_match.group(1))
+            expense_match = re.search(expense_pattern, text)
+            if expense_match:
+                expenditures = float(expense_match.group(1))
+        return round(incomes - expenditures, 2)
 
-    def _concat_dfs(self):
-        df = pd.concat([self.df1, self.df2, self.df3], ignore_index=True)
-        df = df.sort_values(by='交易时间', axis=0, ascending=False).reset_index(drop=True)
-        df.insert(df.columns.tolist().index('金额'), '是否冲账', 0)  # 增加是否冲账列
-        df.insert(df.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
-        df = df.apply(process_excluded_row, axis='columns')  # 修改收支列和增加amount列
-        df['category'] = df.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
-        return df
+    @property
+    def sums(self):
+        return np.round(self.df.groupby(['收/支'])['amount'].sum(), 2)
+
+    @property
+    def category_sums(self):
+        return self.df.groupby(['收/支', 'category'])['amount'].sum().sort_values()
+
+    @property
+    def date_range(self):
+        max_date = self.df['交易时间'].max().strftime('%Y%m%d')
+        min_date = self.df['交易时间'].min().strftime('%Y%m%d')
+        return min_date + '_' + max_date
+
+    @property
+    def labeled_dict(self):
+        """需要手动标记存入数据"""
+        file_path = 'labeled_record_{}.xlsx'.format(self.date_range)
+        labeled = pd.read_excel(file_path, usecols=['是否冲账', 'category'])
+        return labeled.to_dict(orient='list')
+
+    @property
+    def encoding(self):
+        with open(self.path, 'rb') as f:
+            raw_data = f.read(10000)
+            result = chardet.detect(raw_data)
+            return result['encoding']
+
+    def add_columns(self):
+        self.df = self.df.sort_values(by='交易时间', axis=0, ascending=False).reset_index(drop=True)
+        self.df.insert(self.df.columns.tolist().index('金额'), '是否冲账', 0)  # 增加是否冲账列
+        self.df.insert(self.df.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
+        self.df = self.df.apply(process_excluded_row, axis='columns')  # 修改收支列和增加amount列
+        self.df['category'] = self.df.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
 
     @property
     def df(self):
-        return self._merged_df
+        return self._df
 
     @df.setter
     def df(self, new_df):
-        self._merged_df = new_df
+        self._df = new_df
 
     def __repr__(self):
         """返回 DataFrame 的字符串表示"""
@@ -76,33 +107,6 @@ class Transactions:
         # 将修改后的 DataFrame 重新设置回 df 属性，以触发 setter
         self.df = settle_transactions(self._merged_df)
         self._check_equal_sum()
-
-    @property
-    def labeled_dict(self):
-        """需要手动标记存入数据"""
-        file_path = 'labeled_record_{}.xlsx'.format(self.date_range)
-        labeled = pd.read_excel(file_path, usecols=['是否冲账', 'category'])
-        return labeled.to_dict(orient='list')
-
-    @property
-    def balance(self):
-        """计算收支平衡"""
-        summary = self.df.groupby('收/支')['金额'].sum()
-        return np.round(summary['收入'] - summary['支出'], 2)
-
-    @property
-    def sums(self):
-        return np.round(self.df.groupby(['收/支'])['amount'].sum(), 2)
-
-    @property
-    def category_sums(self):
-        return self.df.groupby(['收/支', 'category'])['amount'].sum().sort_values()
-
-    @property
-    def date_range(self):
-        max_date = self.df['交易时间'].max().strftime('%Y%m%d')
-        min_date = self.df['交易时间'].min().strftime('%Y%m%d')
-        return min_date + '_' + max_date
 
     def _check_equal_sum(self):
         """
@@ -139,16 +143,11 @@ class Transactions:
         self.df.at[index, 'amount'] = remaining_amount  # 修改金额
         self._check_equal_sum()
 
-    def write(self):
-        file_name = 'output/record_{}'.format(self.date_range)
-        self.df.to_csv(file_name + '.csv', index=False)
-        self.df.to_excel(file_name + '.xlsx', index=False)
-
 
 class WeixinTransactions(Transactions):
     @property
     def balance(self):
-        return self._balance
+        return super().balance
 
     @property
     def df(self):
@@ -157,17 +156,6 @@ class WeixinTransactions(Transactions):
         df = df.apply(clean_weixin_payment_method, axis='columns')  # 处理【支付方式】和【金额】
         check_balance(self.balance, df)  # 校验数据
         return df
-
-    def extract_balance(self):
-        """
-        对账，校验数据
-        :return:
-        """
-        with open(self.path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-            incomes = float(re.findall(r'笔 (.+?)元', lines[7])[0])
-            expenditures = float(re.findall(r'笔 (.+?)元', lines[8])[0])
-            self._balance = round(incomes - expenditures, 2)
 
     def read_data_weixin(self):  # 获取微信数据
         d_weixin = pd.read_csv(self.path, header=16, skipfooter=0, encoding='utf-8')  # 数据获取，微信
@@ -189,27 +177,11 @@ class WeixinTransactions(Transactions):
         d_weixin['category'] = d_weixin.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
         return d_weixin
 
-    def write_data(self, path):
-        """
-        将数据写入文件
-        :param path:
-        :return:
-        """
-        with open(path, 'a', encoding='utf-8'):
-            pass
-
 
 class AlipayTransactions(Transactions):
     @property
     def balance(self):
-        return self._balance
-
-    def extract_balance(self):
-        with open(self.path, 'r', encoding='gbk') as f:
-            lines = f.readlines()
-            incomes = float(re.findall(r'笔 (.+?)元', lines[8])[0])
-            expenditures = float(re.findall(r'笔 (.+?)元', lines[9])[0])
-            self._balance = round(incomes - expenditures, 2)
+        return super().balance
 
     def read_data_alipay(self):  # 获取支付宝数据
         d_alipay = pd.read_csv(self.path, header=22, encoding='gbk')  # 数据获取，支付宝
@@ -225,20 +197,19 @@ class AlipayTransactions(Transactions):
         d_alipay.insert(4, '类型', "商户消费", allow_duplicates=True)  # 添加类型标识
         return d_alipay
 
-    def load_data_alipay(self):
+    @property
+    def df(self):
         """
         过滤有退款的交易。条件是：收/支=不计收支 & 支付状态=交易关闭
         :return: pd.DataFrame
         """
-        self.extract_balance()
         data_alipay = self.read_data_alipay()
         data_alipay = data_alipay.apply(clean_alipay_payment_method, axis='columns')
 
         # 过滤数据
-        self.df = data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
-        check_balance(self.balance, self.df)
-        return self.df
-
+        df = data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
+        check_balance(self.balance, df)
+        return df
 
 
 def strip_in_data(data):  # 把列名中和数据中首尾的空格都去掉。
