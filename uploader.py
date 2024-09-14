@@ -11,22 +11,10 @@ import chardet
 def write_db(filename):
     if filename.startswith('微信支付账单'):
         wxt = WeixinTransactions(filename)  # 写入数据
-        wxt.write_data()
+        wxt.write()
     elif filename.startswith('alipay_record'):
-        alipay = AlipayTransactions(filename)  # 写入数据
-
-
-def check_balance(balance, df):
-    """
-    和微信支付宝自带汇总数据对账，校验数据
-    """
-    incomes = sum(df[df['收/支'] == '收入']['金额'])
-    expenditures = sum(df[df['收/支'] == '支出']['金额'])
-    if np.round(incomes - expenditures, 2) != balance:
-        raise ValueError('账单对账异常，请检查数据！')
-    else:  # TODO：有可能索引不出来收支数据
-        print('√ 账单对账成功，支出金额：￥{}，收入金额：￥{}，结余金额：￥{}'.format(expenditures, incomes, balance))
-        return True
+        apt = AlipayTransactions(filename)  # 写入数据
+        apt.write()
 
 
 class Transactions:
@@ -72,25 +60,44 @@ class Transactions:
 
     @property
     def encoding(self):
+        """支付宝对账单的编码方式：GB2312，微信对账单的编码方式：UTF-8"""
         with open(self.path, 'rb') as f:
             raw_data = f.read(10000)
             result = chardet.detect(raw_data)
             return result['encoding']
 
-    def add_columns(self):
-        self.df = self.df.sort_values(by='交易时间', axis=0, ascending=False).reset_index(drop=True)
-        self.df.insert(self.df.columns.tolist().index('金额'), '是否冲账', 0)  # 增加是否冲账列
-        self.df.insert(self.df.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
-        self.df = self.df.apply(process_excluded_row, axis='columns')  # 修改收支列和增加amount列
-        self.df['category'] = self.df.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
-
     @property
-    def df(self):
-        return self._df
+    def data_source(self):
+        if '微信' in self.path:
+            return '微信'
+        elif 'alipay' in self.path:
+            return '支付宝'
+        else:
+            return '手工'
 
-    @df.setter
-    def df(self, new_df):
-        self._df = new_df
+    @staticmethod
+    def add_columns(df):
+        """增加字段：是否冲账、amount，修改值：收/支、amount"""
+        df = df.sort_values(by='交易时间', axis=0, ascending=False).reset_index(drop=True)
+        # 增加字段：是否冲账
+        df.insert(df.columns.tolist().index('金额'), '是否冲账', 0)
+        df = df.apply(process_excluded_row, axis='columns')  # 修改收支列和增加amount列
+        df['category'] = df.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
+        return df
+
+    def check_balance(self):
+        """
+        和微信支付宝自带汇总数据对账，校验数据
+        """
+        if np.round(sum(self.sums), 2) != self.balance:
+            raise ValueError('账单对账异常，请检查数据！')
+        else:  # TODO：有可能索引不出来收支数据
+            print(f'√ 账单对账成功，支出金额：￥{self.sums['支出']}，收入金额：￥{self.sums['收入']}，结余金额：￥{self.balance}')
+            return True
+
+    def write(self):
+        with open('output/record_20240701_20240731.csv', 'a', newline='', encoding='utf-8') as f:
+            self.df.to_csv(f, header=f.tell() == 0, index=False)
 
     def __repr__(self):
         """返回 DataFrame 的字符串表示"""
@@ -154,7 +161,7 @@ class WeixinTransactions(Transactions):
         """将已存入零钱的交易，交易账户改为“零钱”"""
         df = self.read_data_weixin()  # 读取数据
         df = df.apply(clean_weixin_payment_method, axis='columns')  # 处理【支付方式】和【金额】
-        check_balance(self.balance, df)  # 校验数据
+        self.check_balance()  # 校验数据
         return df
 
     def read_data_weixin(self):  # 获取微信数据
@@ -179,37 +186,50 @@ class WeixinTransactions(Transactions):
 
 
 class AlipayTransactions(Transactions):
+    def __init__(self, path):
+        super().__init__(path)
+        self.check_balance()
+
     @property
     def balance(self):
         return super().balance
 
-    def read_data_alipay(self):  # 获取支付宝数据
-        d_alipay = pd.read_csv(self.path, header=22, encoding='gbk')  # 数据获取，支付宝
+    def read_data(self):  # 获取支付宝数据
+        df = pd.read_csv(self.path, header=22, encoding=self.encoding)  # 数据获取，支付宝
+        df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
+        df['金额'] = df['金额'].astype('float64')  # 数据类型更改
+
         selected_columns = ['交易时间', '收/支', '交易状态', '交易对方', '商品说明', '金额', '收/付款方式']
-        d_alipay = d_alipay[selected_columns]  # 按顺序提取所需列
-        d_alipay = strip_in_data(d_alipay)  # 去除列名与数值中的空格。
-        d_alipay['交易时间'] = pd.to_datetime(d_alipay['交易时间'])  # 数据类型更改
-        d_alipay['金额'] = d_alipay['金额'].astype('float64')  # 数据类型更改
-        d_alipay = d_alipay.drop(d_alipay[d_alipay['收/支'] == ''].index)  # 删除'收/支'为空的行
-        d_alipay.rename(columns={'交易状态': '支付状态', '商品说明': '商品', '收/付款方式': '支付方式'},
-                        inplace=True)  # 修改列名称
-        d_alipay.insert(1, '来源', "支付宝", allow_duplicates=True)  # 添加支付宝来源标识
-        d_alipay.insert(4, '类型', "商户消费", allow_duplicates=True)  # 添加类型标识
-        return d_alipay
+        df = df[selected_columns]  # 按顺序提取所需列
+        df.rename(columns={
+            '交易分类': 'category',
+            '交易状态': '支付状态',
+            '商品说明': '商品',
+            '收/付款方式': '支付方式'},
+            inplace=True)  # 修改列名称
+        # 增加字段：来源、类型
+        df.insert(1, '来源', "支付宝", allow_duplicates=True)  # 添加支付宝来源标识
+        return df
+
+    @staticmethod
+    def filter_data(df):
+        """过滤有退款的交易。条件是：收/支=不计收支 & 支付状态=交易关闭"""
+        return df[(df['支付状态'] != '交易关闭') & (df['收/支'] != '不计收支')]
+
+    @staticmethod
+    def clean_data(df):
+        return df.apply(clean_alipay_payment_method, axis='columns')
+
+    def process_data(self):
+        df = self.read_data()
+        df = self.clean_data(df)
+        df = self.filter_data(df)
+        df = self.add_columns(df)
+        return df
 
     @property
     def df(self):
-        """
-        过滤有退款的交易。条件是：收/支=不计收支 & 支付状态=交易关闭
-        :return: pd.DataFrame
-        """
-        data_alipay = self.read_data_alipay()
-        data_alipay = data_alipay.apply(clean_alipay_payment_method, axis='columns')
-
-        # 过滤数据
-        df = data_alipay[(data_alipay['支付状态'] != '交易关闭') & (data_alipay['收/支'] != '不计收支')]
-        check_balance(self.balance, df)
-        return df
+        return self.process_data()
 
 
 def strip_in_data(data):  # 把列名中和数据中首尾的空格都去掉。
