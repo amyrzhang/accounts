@@ -136,7 +136,7 @@ class WeixinProcessor(Processor):
         df['金额'] = df['金额'].astype('float64')  # 数据类型更改
 
         # 增加列
-        df.insert(1, '来源', "微信", allow_duplicates=True)  # 添加微信来源标识
+        df.insert(1, '来源', self.data_source, allow_duplicates=True)  # 添加微信来源标识
         df.insert(df.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
         return df
 
@@ -175,7 +175,7 @@ class AlipayProcessor(Processor):
             '收/付款方式': '支付方式'},
             inplace=True)  # 修改列名称
         # 增加字段：来源、类型
-        df.insert(1, '来源', "支付宝", allow_duplicates=True)  # 添加支付宝来源标识
+        df.insert(1, '来源', self.data_source, allow_duplicates=True)  # 添加支付宝来源标识
         df.insert(4, '类型', "商户消费", allow_duplicates=True)
         return df
 
