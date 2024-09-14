@@ -8,18 +8,19 @@ import json
 import chardet
 
 
-def write_db(filename):
-    if filename.startswith('微信支付账单'):
-        wxt = WeixinTransactions(filename)  # 写入数据
+def write_db(filepath):
+    if '微信支付账单' in filepath:
+        wxt = WeixinProcessor(filepath)  # 写入数据
         wxt.write()
-    elif filename.startswith('alipay_record'):
-        apt = AlipayTransactions(filename)  # 写入数据
+    elif 'alipay_record' in filepath:
+        apt = AlipayProcessor(filepath)  # 写入数据
         apt.write()
 
 
-class Transactions:
+class Processor:
     def __init__(self, path):
         self.path = path
+        self.check_balance()
 
     @property
     def balance(self):
@@ -38,25 +39,20 @@ class Transactions:
         return round(incomes - expenditures, 2)
 
     @property
+    def df(self):
+        """读取数据，并添加字段"""
+        return pd.read_csv(self.path, encoding=self.encoding)
+
+    @property
     def sums(self):
-        return np.round(self.df.groupby(['收/支'])['amount'].sum(), 2)
+        sums = self.df.groupby(['收/支'])['amount'].sum()
+        if '收入' not in sums:
+            sums['收入'] = 0
+        return np.round(sums, 2)
 
     @property
     def category_sums(self):
         return self.df.groupby(['收/支', 'category'])['amount'].sum().sort_values()
-
-    @property
-    def date_range(self):
-        max_date = self.df['交易时间'].max().strftime('%Y%m%d')
-        min_date = self.df['交易时间'].min().strftime('%Y%m%d')
-        return min_date + '_' + max_date
-
-    @property
-    def labeled_dict(self):
-        """需要手动标记存入数据"""
-        file_path = 'labeled_record_{}.xlsx'.format(self.date_range)
-        labeled = pd.read_excel(file_path, usecols=['是否冲账', 'category'])
-        return labeled.to_dict(orient='list')
 
     @property
     def encoding(self):
@@ -89,69 +85,34 @@ class Transactions:
         """
         和微信支付宝自带汇总数据对账，校验数据
         """
-        if np.round(sum(self.sums), 2) != self.balance:
-            raise ValueError('账单对账异常，请检查数据！')
-        else:  # TODO：有可能索引不出来收支数据
-            print(f'√ 账单对账成功，支出金额：￥{self.sums['支出']}，收入金额：￥{self.sums['收入']}，结余金额：￥{self.balance}')
+        if np.isclose(self.balance, self.sums.sum()):
+            print(
+                f'√ 账单对账成功，支出金额：￥{self.sums['支出']}，收入金额：￥{self.sums['收入']}，结余金额：￥{self.balance}')
+        else:
+            raise ValueError(f'{self.data_source}账单对账异常，请检查数据！')
+
+    def check_bank_account(self, bank_balance, bank_name='民生银行储蓄卡(4827)'):
+        sums = self.df[self.df['支付方式'] == bank_name].groupby('收/支')['金额'].sum()
+        balance = np.round(sums['收入'] - sums['支出'], 2)
+        if balance != bank_balance:
+            message = f'银行卡对账单异常，预期余额：￥{bank_balance}, 实际余额：￥{balance}'
+            raise ValueError(message)
+        else:
+            income = sums.get('收入', 0)
+            expenditure = sums.get('支出', 0)
+            print(f'√ 账单对账成功，收入金额：￥{income}, 支出金额：￥{expenditure}, 结余金额：￥{balance}')
             return True
 
     def write(self):
-        with open('output/record_20240701_20240731.csv', 'a', newline='', encoding='utf-8') as f:
+        with open('output/transaction_record.csv', 'a', newline='', encoding='utf-8') as f:
             self.df.to_csv(f, header=f.tell() == 0, index=False)
 
     def __repr__(self):
         """返回 DataFrame 的字符串表示"""
         return self.df.__repr__()
 
-    def update_columns(self):
-        """
-        更新列值，其中键是要更新的列名，值是要设置的新值
-        """
-        for col, new_value in self.labeled_dict.items():
-            if col in self._merged_df.columns:
-                self._merged_df[col] = new_value
 
-        # 将修改后的 DataFrame 重新设置回 df 属性，以触发 setter
-        self.df = settle_transactions(self._merged_df)
-        self._check_equal_sum()
-
-    def _check_equal_sum(self):
-        """
-        检查两列的列和是否相等
-        """
-        if not np.isclose(self.balance, self.sums.sum()):
-            raise ValueError(f"{'金额'} 和 {'amount'} 列和不相等")
-
-    def check_bank_account(self, bank_balance, bank_name='民生银行储蓄卡(4827)'):
-        sums = self.df[self.df['支付方式'] == bank_name].groupby('收/支')['金额'].sum()
-        balance = np.round(sums['收入'] - sums['支出'], 2)
-        if balance != bank_balance:
-            message = '银行卡对账单异常，预期余额：￥{}, 实际余额：￥{}'.format(bank_balance, balance)
-            raise ValueError(message)
-        else:
-            income = sums.get('收入', 0)
-            expenditure = sums.get('支出', 0)
-            print('√ 账单对账成功，收入金额：￥{}, 支出金额：￥{}, 结余金额：￥{}'.format(income, expenditure, balance))
-            return True
-
-    def update_struct_balance(self, col_values):
-        """
-        更新特定位置的值并检查列和
-        :param col_values: 要更新的列值
-        :return:
-        """
-        self.df['是否冲账'] = col_values  # 修改是否冲账
-        remaining_amount = self.df['amount'][self.df['是否冲账'] == 1].sum()
-        if remaining_amount >= 0:
-            index = self.df[(self.df['是否冲账'] == 1) & (self.df['收/支'] == '收入')].index[0]
-        else:
-            index = self.df[(self.df['是否冲账'] == 1) & (self.df['收/支'] == '支出')].index[0]
-        self.df.loc[self.df['是否冲账'] == 1, 'amount'] = 0
-        self.df.at[index, 'amount'] = remaining_amount  # 修改金额
-        self._check_equal_sum()
-
-
-class WeixinTransactions(Transactions):
+class WeixinProcessor(Processor):
     @property
     def balance(self):
         return super().balance
@@ -159,36 +120,42 @@ class WeixinTransactions(Transactions):
     @property
     def df(self):
         """将已存入零钱的交易，交易账户改为“零钱”"""
-        df = self.read_data_weixin()  # 读取数据
-        df = df.apply(clean_weixin_payment_method, axis='columns')  # 处理【支付方式】和【金额】
-        self.check_balance()  # 校验数据
-        return df
+        return self.process_data()
 
-    def read_data_weixin(self):  # 获取微信数据
-        d_weixin = pd.read_csv(self.path, header=16, skipfooter=0, encoding='utf-8')  # 数据获取，微信
-        # 选择列和数据类型
-        selected_columns = ['交易时间', '收/支', '当前状态', '交易类型', '交易对方', '商品', '金额(元)', '支付方式']
-        d_weixin = d_weixin[selected_columns]  # 按顺序提取所需列
-        d_weixin.rename(columns={'当前状态': '支付状态', '交易类型': '类型', '金额(元)': '金额'}, inplace=True)  # 修改列名称
-        d_weixin = strip_in_data(d_weixin)  # 去除列名与数值中的空格。
-        d_weixin['交易时间'] = pd.to_datetime(d_weixin['交易时间'])  # 数据类型更改
-        d_weixin['金额'] = d_weixin['金额'].astype('float64')  # 数据类型更改
+    def read_data(self):
+        df = pd.read_csv(self.path, header=16, skipfooter=0, encoding=self.encoding)  # 数据获取，微信
+        selected_columns = ['交易时间', '收/支', '当前状态', '交易对方', '商品', '金额(元)', '支付方式']
+        df = df[selected_columns]  # 按顺序提取所需列
+        df.rename(columns={
+            '当前状态': '支付状态',
+            '交易类型': '类型',
+            '金额(元)': '金额'},
+            inplace=True)  # 修改列名称
+        df = strip_in_data(df)  # 去除列名与数值中的空格。
+        df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
+        df['金额'] = df['金额'].astype('float64')  # 数据类型更改
 
         # 增加列
-        d_weixin.insert(1, '来源', "微信", allow_duplicates=True)  # 添加微信来源标识
-        d_weixin.insert(d_weixin.columns.tolist().index('金额'), '是否冲账', 0)  # 增加是否冲账列
-        d_weixin.insert(d_weixin.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
+        df.insert(1, '来源', "微信", allow_duplicates=True)  # 添加微信来源标识
+        df.insert(df.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
+        return df
 
-        # 更新数据
-        d_weixin = d_weixin.apply(process_excluded_row, axis='columns')  # 修改收支列和增加amount列
-        d_weixin['category'] = d_weixin.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
-        return d_weixin
+    @staticmethod
+    def clean_data(df):
+        df['category'] = df.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
+        df = df.apply(clean_weixin_payment_method, axis='columns')  # 处理【支付方式】和【金额】
+        return df
+
+    def process_data(self):
+        df = self.read_data()
+        df = self.add_columns(df)
+        df = self.clean_data(df)
+        return df
 
 
-class AlipayTransactions(Transactions):
+class AlipayProcessor(Processor):
     def __init__(self, path):
         super().__init__(path)
-        self.check_balance()
 
     @property
     def balance(self):
@@ -199,7 +166,7 @@ class AlipayTransactions(Transactions):
         df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
         df['金额'] = df['金额'].astype('float64')  # 数据类型更改
 
-        selected_columns = ['交易时间', '收/支', '交易状态', '交易对方', '商品说明', '金额', '收/付款方式']
+        selected_columns = ['交易时间', '收/支', '交易状态', '交易分类', '交易对方', '商品说明', '金额', '收/付款方式']
         df = df[selected_columns]  # 按顺序提取所需列
         df.rename(columns={
             '交易分类': 'category',
@@ -209,6 +176,7 @@ class AlipayTransactions(Transactions):
             inplace=True)  # 修改列名称
         # 增加字段：来源、类型
         df.insert(1, '来源', "支付宝", allow_duplicates=True)  # 添加支付宝来源标识
+        df.insert(4, '类型', "商户消费", allow_duplicates=True)
         return df
 
     @staticmethod
@@ -222,9 +190,9 @@ class AlipayTransactions(Transactions):
 
     def process_data(self):
         df = self.read_data()
+        df = self.add_columns(df)
         df = self.clean_data(df)
         df = self.filter_data(df)
-        df = self.add_columns(df)
         return df
 
     @property
@@ -296,11 +264,7 @@ def process_excluded_row(row):
 
 
 def process_category_row(row):
-    """
-    识别交易类别
-    :param row:
-    :return:
-    """
+    """识别交易类别"""
     text = row['交易对方'] + ' ' + row['商品']
     shopping_pattern = '平台商户|抖音电商商家|快递'  # 根据交易对方判断
     transportation_pattern = '出行|加油|中铁|12306'  # 根据二者判断
@@ -337,4 +301,3 @@ def settle_transactions(data):
     # 将选定的行的 'amount' 列设为 remaining_amount
     data.at[index, 'amount'] = remaining_amount
     return data
-

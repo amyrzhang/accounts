@@ -6,8 +6,8 @@ import pandas as pd
 import os
 import re
 
-from calculate import DataAnalyzer
-from uploader import WeixinTransactions
+from calculate import Analyzer
+from uploader import WeixinProcessor
 from uploader import write_db
 
 app = Flask(__name__)
@@ -19,7 +19,7 @@ CORS(app)  # 允许所有来源
 @app.route('/api/data/transactions.json', methods=['GET'])
 def get_transactions():
     df = pd.read_csv(
-        'output/record_20240701_20240731.csv',
+        'output/transaction_record.csv',
         encoding='utf-8',
         usecols=range(11)
     )
@@ -44,7 +44,12 @@ def get_transactions():
 
 @app.route('/api/data/monthly', methods=['GET'])
 def get_monthly_report():
-    return jsonify(DataAnalyzer().monthly_summary)
+    a = Analyzer()
+    return jsonify({
+        'expenditure': -a.sums['支出'],
+        'income': a.sums['收入'],
+        'balance': a.sums.sum()
+    })
 
 
 @app.route('/upload', methods=['POST'])
@@ -55,13 +60,13 @@ def upload_file():
     if file.filename == '':
         return "No selected file", 400
     if file:
-        filename = file.filename
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file_name = file.filename
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
         if os.path.exists(file_path):
-            return f"File already exists: {filename}", 409
+            return f"File already exists: {file_name}", 409
         file.save(file_path)
-        write_db(filename)
-        return f"File saved successfully as {filename}", 200
+        write_db(file_path)
+        return f"File saved successfully as {file_name}", 200
 
 
 if __name__ == '__main__':

@@ -9,29 +9,23 @@
 
 import pandas as pd
 import os
-from uploader import WeixinTransactions, AlipayTransactions, Transactions, read_data_bank
+from uploader import WeixinProcessor, AlipayProcessor, Processor, read_data_bank
+from calculate import Analyzer
 
 if __name__ == '__main__':
+    a = Analyzer()
+    res =  {
+        'expenditure': -a.sums['支出'],
+        'income': a.sums['收入'],
+        'balance': a.sums.sum()
+    }
     # 读取数据
-    recorder = AlipayTransactions('uploads/alipay_record_20240801_165204.csv')
+    recorder = WeixinProcessor('uploads/微信支付账单(20240801-20240831).csv')
+    data_weixin = recorder.df
+    recorder = AlipayProcessor('uploads/alipay_record_20240914_090323.csv')
     a = recorder.df
 
-    recorder = WeixinTransactions('uploads/微信支付账单(20240701-20240801).csv')
-    data_weixin = recorder.df
-    # recorder.write_data()
 
-    exit(0)
 
-    data_alipay = recorder.load_data_alipay()  # 读数据
-    data_bank = read_data_bank('uploads/bank_record_20240701_20240731.csv')
 
-    # 标记并修改数据
-    es_df = Transactions(data_weixin, data_alipay, data_bank)
-    es_df.check_bank_account(12316.84)
-    # es_df.df.to_excel('merged_data.xlsx', index=False)
 
-    # 增加 是否冲账数据 和 类别数据
-    es_df.update_columns()
-    print(es_df.balance, es_df.sums, es_df.category_sums)
-
-    es_df.write_db()  # 写入数据
