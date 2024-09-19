@@ -23,6 +23,7 @@ def get_transactions():
         encoding='utf-8',
         usecols=range(11)
     )
+    df.sort_values(by='交易时间', ascending=False, inplace=True)
     df.rename(
         inplace=True,
         columns={

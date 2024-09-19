@@ -24,8 +24,3 @@ if __name__ == '__main__':
     data_weixin = recorder.df
     recorder = AlipayProcessor('uploads/alipay_record_20240914_090323.csv')
     a = recorder.df
-
-
-
-
-
