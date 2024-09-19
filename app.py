@@ -53,6 +53,16 @@ def get_monthly_report():
     })
 
 
+@app.route('/api/data/monthly/<month>', methods=['GET'])
+def get_monthly_report_by_month(month):
+    a = Analyzer(month)
+    return jsonify({
+        'expenditure': -a.sums['支出'],
+        'income': a.sums['收入'],
+        'balance': a.sums.sum()
+    })
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
