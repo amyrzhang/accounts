@@ -16,13 +16,15 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 CORS(app)  # 允许所有来源
 
 
-@app.route('/api/data/transactions.json', methods=['GET'])
+@app.route('/api/data', methods=['GET'])
 def get_transactions():
     df = pd.read_csv(
         'output/transaction_record.csv',
         encoding='utf-8',
         usecols=range(11)
     )
+    if request.args.get('month'):
+        df = df[df['交易时间'].str.contains(request.args.get('month'))]
     df.sort_values(by='交易时间', ascending=False, inplace=True)
     df.rename(
         inplace=True,
@@ -43,18 +45,8 @@ def get_transactions():
     return jsonify(df.to_dict(orient='records'))
 
 
-@app.route('/api/data/monthly', methods=['GET'])
-def get_monthly_report():
-    a = Analyzer()
-    return jsonify({
-        'expenditure': -a.sums['支出'],
-        'income': a.sums['收入'],
-        'balance': a.sums.sum()
-    })
-
-
 @app.route('/api/data/monthly/<month>', methods=['GET'])
-def get_monthly_report_by_month(month):
+def get_monthly_report(month):
     a = Analyzer(month)
     return jsonify({
         'expenditure': -a.sums['支出'],

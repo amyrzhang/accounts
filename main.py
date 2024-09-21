@@ -11,9 +11,11 @@ import pandas as pd
 import os
 from uploader import WeixinProcessor, AlipayProcessor, Processor, read_data_bank
 from calculate import Analyzer
+from app import get_transactions
 
 if __name__ == '__main__':
-    a = Analyzer()
+    a = get_transactions('2024-08')
+    a = Analyzer('2024-08')
     res =  {
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],

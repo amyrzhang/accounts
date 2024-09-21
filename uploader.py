@@ -86,8 +86,8 @@ class Processor:
         和微信支付宝自带汇总数据对账，校验数据
         """
         if np.isclose(self.balance, self.sums.sum()):
-            print(
-                f'√ 账单对账成功，支出金额：￥{self.sums['支出']}，收入金额：￥{self.sums['收入']}，结余金额：￥{self.balance}')
+            pass
+            # print(f'√ 账单对账成功，支出金额：￥{self.sums['支出']}，收入金额：￥{self.sums['收入']}，结余金额：￥{self.balance}')
         else:
             raise ValueError(f'{self.data_source}账单对账异常，请检查数据！')
 
