@@ -14,8 +14,7 @@ from calculate import Analyzer
 from app import get_transactions
 
 if __name__ == '__main__':
-    a = get_transactions('2024-08')
-    a = Analyzer('2024-08')
+    a = Analyzer()
     res =  {
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],

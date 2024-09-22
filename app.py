@@ -45,14 +45,19 @@ def get_transactions():
     return jsonify(df.to_dict(orient='records'))
 
 
-@app.route('/api/data/monthly/<month>', methods=['GET'])
-def get_monthly_report(month):
-    a = Analyzer(month)
+@app.route('/api/report', methods=['GET'])
+def get_monthly_report():
+    a = Analyzer()
     return jsonify({
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],
         'balance': a.sums.sum()
     })
+
+
+@app.route('/api/report/category', methods=['GET'])
+def get_category_report():
+    return jsonify(Analyzer().category_sums['支出'].abs().sort_values(ascending=False).to_dict())
 
 
 @app.route('/upload', methods=['POST'])
