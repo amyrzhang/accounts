@@ -12,9 +12,11 @@ import os
 from uploader import WeixinProcessor, AlipayProcessor, Processor, read_data_bank
 from calculate import Analyzer
 from app import get_transactions
+from flask import jsonify
 
 if __name__ == '__main__':
     a = Analyzer()
+    jsonify(a.category_sums['支出'].abs().sort_values(ascending=False).to_dict())
     res =  {
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],

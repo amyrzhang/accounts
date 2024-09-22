@@ -60,6 +60,11 @@ def get_category_report():
     return jsonify(Analyzer().category_sums['支出'].abs().sort_values(ascending=False).to_dict())
 
 
+@app.route('/api/report/account', methods=['GET'])
+def get_account_report():
+    return jsonify(Analyzer().account_sums.reset_index().to_dict(orient='records'))
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:

@@ -55,6 +55,10 @@ class Processor:
         return self.df.groupby(['收/支', 'category'])['amount'].sum().sort_values()
 
     @property
+    def account_sums(self):
+        return self.df.groupby(['支付方式', '收/支'])['amount'].sum()
+
+    @property
     def encoding(self):
         """支付宝对账单的编码方式：GB2312，微信对账单的编码方式：UTF-8"""
         with open(self.path, 'rb') as f:
