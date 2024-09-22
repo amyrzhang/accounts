@@ -16,7 +16,7 @@ from flask import jsonify
 
 if __name__ == '__main__':
     a = Analyzer()
-    jsonify(a.category_sums['支出'].abs().sort_values(ascending=False).to_dict())
+    b = a.account_sums
     res =  {
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],

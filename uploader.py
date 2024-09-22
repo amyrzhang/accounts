@@ -56,7 +56,11 @@ class Processor:
 
     @property
     def account_sums(self):
-        return self.df.groupby(['支付方式', '收/支'])['amount'].sum()
+        return self.df.\
+            groupby(['支付方式', '收/支'])['amount'].\
+            sum().reset_index().\
+            pivot(index='支付方式', columns='收/支', values='amount').\
+            fillna(0)
 
     @property
     def encoding(self):
