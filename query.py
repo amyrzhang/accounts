@@ -6,11 +6,10 @@ from uploader import Processor
 
 
 class Analyzer(Processor):
-    def __init__(self, month=None):
+    def __init__(self):
         self.path = 'data/transaction_record.csv'
         self._df = pd.read_csv(self.path)
-        self._month = month
-        self.rename()
+        self._df.sort_values(by='交易时间', ascending=False, inplace=True)
 
     @property
     def df(self):
@@ -21,11 +20,8 @@ class Analyzer(Processor):
         self._df = value
 
     @property
-    def selected_month(self):
-        if self._month is not None:
-            return self._month
-        else:
-            return self._df['month'].max()
+    def max_month(self):
+        return pd.to_datetime(self._df['交易时间']).max().strftime('%Y-%m')
 
     def rename(self):
         self._df.rename(
@@ -44,12 +40,9 @@ class Analyzer(Processor):
                 '支付方式': 'pay_method'
             },
         )
-        return self._df
 
-    def filter_by_params(self):
-        self._df['交易时间'] = pd.to_datetime(self._df['交易时间'])
-        self._df['month'] = self._df['交易时间'].dt.to_period('M')  # 格式：'2024-05'
-        self._df = self._df[self._df['month'] == self.selected_month]
+    def filter_monthly(self):
+        self._df = self._df[self._df['交易时间'].str.startswith(self.max_month)]
 
     def filter(self, params):
         """
@@ -62,4 +55,3 @@ class Analyzer(Processor):
                 self._df = self._df[self._df[param].astype(str).str.contains(value)]
             else:
                 print(f"Warning: Column '{param}' not found in DataFrame.")
-        return self._df

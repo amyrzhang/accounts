@@ -20,16 +20,17 @@ CORS(app)  # 允许所有来源
 @app.route('/api/data', methods=['GET'])
 def get_transactions():
     a = Analyzer()
-    pprint(request.args)
+    a.rename()
+    print(a.df.head(2))
     if request.args:
         a.filter(params=request.args)
-    a.df.sort_values(by='time', ascending=False, inplace=True)
     return jsonify(a.df.to_dict(orient='records'))
 
 
 @app.route('/api/report', methods=['GET'])
 def get_monthly_report():
     a = Analyzer()
+    a.filter_monthly()
     return jsonify({
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],
@@ -39,12 +40,16 @@ def get_monthly_report():
 
 @app.route('/api/report/category', methods=['GET'])
 def get_category_report():
-    return jsonify(Analyzer().category_sums['支出'].abs().sort_values(ascending=False).to_dict())
+    a = Analyzer()
+    a.filter_monthly()
+    return jsonify(a.category_sums['支出'].abs().sort_values(ascending=False).to_dict())
 
 
 @app.route('/api/report/account', methods=['GET'])
 def get_account_report():
-    return jsonify(Analyzer().account_sums.reset_index().to_dict(orient='records'))
+    a = Analyzer()
+    a.filter_monthly()
+    return jsonify(a.account_sums.reset_index().to_dict(orient='records'))
 
 
 @app.route('/upload', methods=['POST'])

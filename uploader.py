@@ -41,7 +41,8 @@ class Processor:
     @property
     def df(self):
         """读取数据，并添加字段"""
-        return pd.read_csv(self.path, encoding=self.encoding)
+        df = pd.read_csv(self.path, encoding=self.encoding)
+        return df.sort_values(by='交易时间', ascending=False)
 
     @property
     def sums(self):
@@ -56,11 +57,9 @@ class Processor:
 
     @property
     def account_sums(self):
-        return self.df.\
-            groupby(['支付方式', '收/支'])['amount'].\
-            sum().reset_index().\
-            pivot(index='支付方式', columns='收/支', values='amount').\
-            fillna(0)
+        grouped_df = self.df.groupby(['支付方式', '收/支'])['amount'].sum().reset_index()
+        pivot_df = grouped_df.pivot(index='支付方式', columns='收/支', values='amount').fillna(0)
+        return pivot_df.round(2)
 
     @property
     def encoding(self):
@@ -215,12 +214,8 @@ def strip_in_data(data):  # 把列名中和数据中首尾的空格都去掉。
 
 
 def clean_weixin_payment_method(row):
-    """
-    将已存入零钱的交易，交易账户改为“零钱”
-    :type row: pd.Series
-    :return: pd.Series
-    """
-    if row['支付方式'] == '/' and row['支付状态'] == '已存入零钱':
+    """微信收入的交易账户为 零钱 """
+    if row['收/支'] == '收入' and row['支付方式'] == '/':
         row['支付方式'] = '零钱'
     return row
 
@@ -234,13 +229,6 @@ def clean_alipay_payment_method(row):
         row['支付方式'] = '余额宝'
     row['支付方式'] = str(row['支付方式'])[:13]
     return row
-
-
-def read_data_bank(path):
-    data = pd.read_csv(path)
-    data['交易时间'] = pd.to_datetime(data['交易时间'])
-    data['金额'] = data['金额'].astype('float64')
-    return data
 
 
 def process_excluded_row(row):

@@ -16,7 +16,7 @@ from flask import jsonify
 
 if __name__ == '__main__':
     a = Analyzer()
-    a.filter({'month': '2024-08', ''})
+    a.filter({'month': '2024-08'})
     res =  {
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],
