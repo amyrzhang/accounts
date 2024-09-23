@@ -112,7 +112,7 @@ class Processor:
             return True
 
     def write(self):
-        with open('output/transaction_record.csv', 'a', newline='', encoding='utf-8') as f:
+        with open('data/transaction_record.csv', 'a', newline='', encoding='utf-8') as f:
             self.df.to_csv(f, header=f.tell() == 0, index=False)
 
     def __repr__(self):

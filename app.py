@@ -6,9 +6,10 @@ import pandas as pd
 import os
 import re
 
-from calculate import Analyzer
+from query import Analyzer
 from uploader import WeixinProcessor
 from uploader import write_db
+from pprint import pprint
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -18,31 +19,12 @@ CORS(app)  # 允许所有来源
 
 @app.route('/api/data', methods=['GET'])
 def get_transactions():
-    df = pd.read_csv(
-        'output/transaction_record.csv',
-        encoding='utf-8',
-        usecols=range(11)
-    )
-    if request.args.get('month'):
-        df = df[df['交易时间'].str.contains(request.args.get('month'))]
-    df.sort_values(by='交易时间', ascending=False, inplace=True)
-    df.rename(
-        inplace=True,
-        columns={
-            '交易时间': 'time',
-            '来源': 'source',
-            '收/支': 'expenditure_income',
-            '支付状态': 'status',
-            '类型': 'type',
-            'category': 'category',
-            '交易对方': 'counterparty',
-            '商品': 'goods',
-            '是否冲账': 'reversed',
-            '金额': 'amount',
-            '支付方式': 'pay_method'
-        },
-    )
-    return jsonify(df.to_dict(orient='records'))
+    a = Analyzer()
+    pprint(request.args)
+    if request.args:
+        a.filter(params=request.args)
+    a.df.sort_values(by='time', ascending=False, inplace=True)
+    return jsonify(a.df.to_dict(orient='records'))
 
 
 @app.route('/api/report', methods=['GET'])

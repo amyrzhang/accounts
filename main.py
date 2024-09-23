@@ -10,13 +10,13 @@
 import pandas as pd
 import os
 from uploader import WeixinProcessor, AlipayProcessor, Processor, read_data_bank
-from calculate import Analyzer
+from query import Analyzer
 from app import get_transactions
 from flask import jsonify
 
 if __name__ == '__main__':
     a = Analyzer()
-    b = a.account_sums
+    a.filter({'month': '2024-08', ''})
     res =  {
         'expenditure': -a.sums['支出'],
         'income': a.sums['收入'],
