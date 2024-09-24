@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+from datetime import datetime, timedelta
 from uploader import Processor
 
 
@@ -58,6 +59,9 @@ class Analyzer(Processor):
         :return:
         """
         for param, value in params.items():
+            if param == 'time':
+                value = datetime.strptime(value[:10], '%Y-%m-%d') + timedelta(days=1)
+                value = value.strftime('%Y-%m')
             if param in self._df.columns:
                 self._df = self._df[self._df[param].astype(str).str.contains(value)]
             else:

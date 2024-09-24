@@ -21,7 +21,6 @@ CORS(app)  # 允许所有来源
 def get_transactions():
     a = Analyzer()
     a.rename()
-    print(a.df.head(2))
     if request.args:
         a.filter(params=request.args)
     return jsonify(a.df.to_dict(orient='records'))
