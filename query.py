@@ -23,6 +23,13 @@ class Analyzer(Processor):
     def max_month(self):
         return pd.to_datetime(self._df['交易时间']).max().strftime('%Y-%m')
 
+    @property
+    def top10_transactions(self):
+        sorted_df = self._df[self._df['收/支'] == '支出'].sort_values(by='金额', ascending=False)
+        sorted_df['cumulative_sum'] = sorted_df['金额'].cumsum()
+        sorted_df['cdf'] = np.round(sorted_df['cumulative_sum'] / sorted_df['金额'].sum() * 100, 2)
+        return sorted_df[['商品', '金额', 'cdf']].head(10)
+
     def rename(self):
         self._df.rename(
             inplace=True,

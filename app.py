@@ -52,6 +52,13 @@ def get_account_report():
     return jsonify(a.account_sums.reset_index().to_dict(orient='records'))
 
 
+@app.route('/api/report/top10', methods=['GET'])
+def get_top10_transactions():
+    a = Analyzer()
+    a.filter_monthly()
+    return jsonify(a.top10_transactions.to_dict(orient='records'))
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
