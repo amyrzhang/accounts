@@ -9,7 +9,7 @@ import re
 from query import Analyzer
 from uploader import WeixinProcessor
 from uploader import write_db
-from pprint import pprint
+from utils import format_currency, format_percentage
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -48,14 +48,19 @@ def get_category_report():
 def get_account_report():
     a = Analyzer()
     a.filter_monthly()
-    return jsonify(a.account_sums.reset_index().to_dict(orient='records'))
+    res = a.account_sums
+    res = res.applymap(format_currency)
+    return jsonify(res.reset_index().to_dict(orient='records'))
 
 
 @app.route('/api/report/top10', methods=['GET'])
 def get_top10_transactions():
     a = Analyzer()
     a.filter_monthly()
-    return jsonify(a.top10_transactions.to_dict(orient='records'))
+    res = a.top10_transactions
+    res['金额'] = res['金额'].apply(format_currency)
+    res['cdf'] = res['cdf'].apply(format_percentage)
+    return jsonify(res.to_dict(orient='records'))
 
 
 @app.route('/upload', methods=['POST'])
