@@ -49,7 +49,6 @@ def get_account_report():
     a = Analyzer()
     a.filter_monthly()
     res = a.account_sums
-    res = res.applymap(format_currency)
     return jsonify(res.reset_index().to_dict(orient='records'))
 
 
