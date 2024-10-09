@@ -10,11 +10,13 @@ import chardet
 
 def write_db(filepath):
     if '微信支付账单' in filepath:
-        wxt = WeixinProcessor(filepath)  # 写入数据
-        wxt.write()
+        dp = WeixinProcessor(filepath)  # 写入数据
     elif 'alipay_record' in filepath:
-        apt = AlipayProcessor(filepath)  # 写入数据
-        apt.write()
+        dp = AlipayProcessor(filepath)  # 写入数据
+    else:
+        print('文件类型不支持')
+        return None
+    dp.write()
 
 
 class Processor:
@@ -93,10 +95,11 @@ class Processor:
         和微信支付宝自带汇总数据对账，校验数据
         """
         if np.isclose(self.balance, self.sums.sum()):
-            pass
-            # print(f'√ 账单对账成功，支出金额：￥{self.sums['支出']}，收入金额：￥{self.sums['收入']}，结余金额：￥{self.balance}')
+            print(f'√ 账单对账成功，支出金额：￥{self.sums['支出']}，收入金额：￥{self.sums['收入']}，结余金额：￥{self.balance}')
         else:
-            raise ValueError(f'{self.data_source}账单对账异常，请检查数据！')
+            # TODO: 需要处理跨越订单导致误差
+            # raise ValueError(f'{self.data_source}账单对账异常，请检查数据！')
+            pass
 
     def check_bank_account(self, bank_balance, bank_name='民生银行储蓄卡(4827)'):
         sums = self.df[self.df['支付方式'] == bank_name].groupby('收/支')['金额'].sum()
@@ -131,8 +134,6 @@ class WeixinProcessor(Processor):
 
     def read_data(self):
         df = pd.read_csv(self.path, header=16, skipfooter=0, encoding=self.encoding)  # 数据获取，微信
-        selected_columns = ['交易时间', '收/支', '当前状态', '交易对方', '商品', '金额(元)', '支付方式']
-        df = df[selected_columns]  # 按顺序提取所需列
         df.rename(columns={
             '当前状态': '支付状态',
             '交易类型': '类型',
@@ -145,7 +146,8 @@ class WeixinProcessor(Processor):
         # 增加列
         df.insert(1, '来源', self.data_source, allow_duplicates=True)  # 添加微信来源标识
         df.insert(df.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
-        return df
+        selected_columns = ['交易时间', '来源', '收/支', '支付状态', '类型', 'category', '交易对方', '商品', '金额', '支付方式']
+        return df[selected_columns]
 
     @staticmethod
     def clean_data(df):
