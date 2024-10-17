@@ -5,6 +5,7 @@ from datetime import datetime
 
 api = Blueprint('api', __name__)
 
+
 @api.route('/transactions', methods=['POST'])
 def create_transaction():
     data = request.get_json()
@@ -25,15 +26,18 @@ def create_transaction():
     db.session.commit()
     return jsonify(transaction.to_dict()), 201
 
+
 @api.route('/transactions', methods=['GET'])
 def get_transactions():
     transactions = Transaction.query.all()
     return jsonify([transaction.to_dict() for transaction in transactions])
 
+
 @api.route('/transactions/<int:id>', methods=['GET'])
 def get_transaction(id):
     transaction = Transaction.query.get_or_404(id)
     return jsonify(transaction.to_dict())
+
 
 @api.route('/transactions/<int:id>', methods=['PUT'])
 def update_transaction(id):
@@ -52,6 +56,7 @@ def update_transaction(id):
     transaction.write_off = data['write_off']
     db.session.commit()
     return jsonify(transaction.to_dict())
+
 
 @api.route('/transactions/<int:id>', methods=['DELETE'])
 def delete_transaction(id):
