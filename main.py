@@ -7,23 +7,20 @@
 # Finished:    2021/1/7 20:30
 # Author:      AmyZhang
 
-import pandas as pd
-import os
-from uploader import WeixinProcessor, AlipayProcessor, Processor, read_data_bank
+
+from uploader import WeixinProcessor, AlipayProcessor, Processor
 from query import Analyzer
-from app import get_transactions
-from flask import jsonify
 
 if __name__ == '__main__':
-    a = Analyzer()
-    a.filter({'month': '2024-08'})
-    res =  {
-        'expenditure': -a.sums['支出'],
-        'income': a.sums['收入'],
-        'balance': a.sums.sum()
-    }
+    # a = Analyzer()
+    # a.filter({'month': '2024-08'})
+    # res =  {
+    #     'expenditure': -a.sums['支出'],
+    #     'income': a.sums['收入'],
+    #     'balance': a.sums.sum()
+    # }
     # 读取数据
-    recorder = WeixinProcessor('uploads/微信支付账单(20240801-20240831).csv')
+    recorder = WeixinProcessor('uploads/微信支付账单(20240901-20240930).csv')
     data_weixin = recorder.df
     recorder = AlipayProcessor('uploads/alipay_record_20240914_090323.csv')
     a = recorder.df
