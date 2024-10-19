@@ -15,6 +15,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 CORS(app)  # 允许所有来源
+db.init_app(app)
 
 
 @app.route('/api/data', methods=['GET'])

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # 定义数据库模型
 from flask_sqlalchemy import SQLAlchemy
-
+# 创建 SQLAlchemy 对象
 db = SQLAlchemy()
 
 
