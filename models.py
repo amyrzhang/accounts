@@ -1,4 +1,5 @@
-# ¶¨ÒåÊı¾İ¿âÄ£ĞÍ
+# -*- coding: utf-8 -*-
+# å®šä¹‰æ•°æ®åº“æ¨¡å‹
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -6,18 +7,18 @@ db = SQLAlchemy()
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    time = db.Column(db.DateTime, nullable=False)  # ½»Ò×Ê±¼ä
-    source = db.Column(db.String(128), nullable=False)  # À´Ô´
-    expenditure_income = db.Column(db.String(10), nullable=False)  # ÊÕ/Ö§
-    status = db.Column(db.String(10), nullable=False)  # Ö§¸¶×´Ì¬
-    type = db.Column(db.String(10), nullable=False)  # ÀàĞÍ
-    category = db.Column(db.String(128), nullable=False)  # Àà±ğ
-    counterparty = db.Column(db.String(128), nullable=False)  # ½»Ò×¶Ô·½
-    goods = db.Column(db.String(128), nullable=False)  # ÉÌÆ·
-    reversed = db.Column(db.Boolean, nullable=False, default=False)  # ÊÇ·ñ³åÕË
-    amount = db.Column(db.Float, nullable=False)  # ½ğ¶î
-    pay_method = db.Column(db.String(20), nullable=False)  # Ö§¸¶·½Ê½
-    # processed_amount = db.Column(db.Float, nullable=True)  # ´¦Àí½ğ¶î
+    time = db.Column(db.DateTime, nullable=False)  # äº¤æ˜“æ—¶é—´
+    source = db.Column(db.String(128), nullable=False)  # æ¥æº
+    expenditure_income = db.Column(db.String(10), nullable=False)  # æ”¶/æ”¯
+    status = db.Column(db.String(10), nullable=False)  # æ”¯ä»˜çŠ¶æ€
+    type = db.Column(db.String(10), nullable=False)  # ç±»å‹
+    category = db.Column(db.String(128), nullable=False)  # ç±»åˆ«
+    counterparty = db.Column(db.String(128), nullable=False)  # äº¤æ˜“å¯¹æ–¹
+    goods = db.Column(db.String(128), nullable=False)  # å•†å“
+    reversed = db.Column(db.Boolean, nullable=False, default=False)  # æ˜¯å¦å†²è´¦
+    amount = db.Column(db.Float, nullable=False)  # é‡‘é¢
+    pay_method = db.Column(db.String(20), nullable=False)  # æ”¯ä»˜æ–¹å¼
+    # processed_amount = db.Column(db.Float, nullable=True)  # å¤„ç†é‡‘é¢
 
     def to_dict(self):
         return {

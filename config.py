@@ -1,4 +1,5 @@
-# °üº¬Êı¾İ¿âÅäÖÃ
+# -*- coding: utf-8 -*-
+# åŒ…å«æ•°æ®åº“é…ç½®
 import os
 from urllib.parse import quote_plus as urlquote
 
@@ -6,7 +7,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class Config:
-    # mysql ÅäÖÃ
+    # mysql é…ç½®
     MYSQL_USERNAME = "root"
     MYSQL_PASSWORD = "amy24%Bella"
     MYSQL_HOST = "127.0.0.1"

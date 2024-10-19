@@ -1,4 +1,5 @@
-# 定义API路由
+# -*- coding: utf-8 -*-
+# 瀹氫箟API璺敱
 from flask import Blueprint, request, jsonify
 from models import db, Transaction
 from datetime import datetime
