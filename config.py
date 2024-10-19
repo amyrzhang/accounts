@@ -14,4 +14,3 @@ class Config:
     MYSQL_DATABASE = "money_track"
 
     SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{MYSQL_USERNAME}:{urlquote(MYSQL_PASSWORD)}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False

@@ -10,17 +10,17 @@ api = Blueprint('api', __name__)
 def create_transaction():
     data = request.get_json()
     transaction = Transaction(
-        transaction_time=datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S'),
+        time=datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S'),
         source=data['source'],
+        expenditure_income=data['expenditure_income'],
+        status=data['status'],
         type=data['type'],
         category=data['category'],
         counterparty=data['counterparty'],
-        product=data['product'],
+        goods=data['goods'],
+        reversed=data['reversed'],
         amount=data['amount'],
-        payment_status=data['payment_status'],
         payment_method=data['payment_method'],
-        processed_amount=data.get('processed_amount'),
-        write_off=data['write_off']
     )
     db.session.add(transaction)
     db.session.commit()
@@ -43,17 +43,17 @@ def get_transaction(id):
 def update_transaction(id):
     data = request.get_json()
     transaction = Transaction.query.get_or_404(id)
-    transaction.transaction_time = datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S')
+    transaction.time = datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S')
     transaction.source = data['source']
+    transaction.expenditure_income = data['expenditure_income']
+    transaction.status = data['status']
     transaction.type = data['type']
     transaction.category = data['category']
     transaction.counterparty = data['counterparty']
-    transaction.product = data['product']
+    transaction.goods = data['goods']
     transaction.amount = data['amount']
-    transaction.payment_status = data['payment_status']
+    transaction.reversed = data['reversed']
     transaction.payment_method = data['payment_method']
-    transaction.processed_amount = data.get('processed_amount')
-    transaction.write_off = data['write_off']
     db.session.commit()
     return jsonify(transaction.to_dict())
 
