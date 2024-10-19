@@ -6,12 +6,14 @@ from datetime import datetime
 import os
 
 from models import db, Transaction
+from config import Config
 from query import Analyzer
 from uploader import write_db
 from utils import format_currency, format_percentage
 
 api = Blueprint('api', __name__)
 app = Flask(__name__)
+app.config.from_object(Config)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 CORS(app)  # 允许所有来源
