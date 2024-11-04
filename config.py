@@ -10,7 +10,7 @@ class Config:
     # mysql 配置
     MYSQL_USERNAME = "root"
     MYSQL_PASSWORD = "amy24%Bella"
-    MYSQL_HOST = "127.0.0.1"
+    MYSQL_HOST = "43.134.233.6"
     MYSQL_PORT = 3306
     MYSQL_DATABASE = "money_track"
 
