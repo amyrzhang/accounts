@@ -11,7 +11,7 @@ from query import Analyzer
 from uploader import write_db
 from utils import format_currency, format_percentage
 
-api = Blueprint('api', __name__)
+
 app = Flask(__name__)
 app.config.from_object(Config)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -32,6 +32,29 @@ db.init_app(app)
 def get_transactions():
     transactions = Transaction.query.all()
     return jsonify([transaction.to_dict() for transaction in transactions])
+
+
+@app.route('/transactions', methods=['POST'])
+def create_transaction():
+    data = request.get_json()
+    transaction = Transaction(
+        time=datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S'),
+        source=data['source'],
+        expenditure_income=data['expenditure_income'],
+        status=data['status'],
+        type=data['type'],
+        category=data['category'],
+        counterparty=data['counterparty'],
+        goods=data['goods'],
+        reversed=data['reversed'],
+        amount=data['amount'],
+        payment_method=data['payment_method'],
+    )
+    print(transaction)
+    # db.session.add(transaction)
+    # db.session.commit()
+    return jsonify(transaction.to_dict()), 200
+
 
 @app.route('/api/report', methods=['GET'])
 def get_monthly_report():
@@ -84,30 +107,6 @@ def upload_file():
         file.save(file_path)
         write_db(file_path)
         return f"File saved successfully as {file_name}", 200
-
-
-# @api.route('/transactions', methods=['POST'])
-# def create_transaction():
-#     data = request.get_json()
-#     transaction = Transaction(
-#         time=datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S'),
-#         source=data['source'],
-#         expenditure_income=data['expenditure_income'],
-#         status=data['status'],
-#         type=data['type'],
-#         category=data['category'],
-#         counterparty=data['counterparty'],
-#         goods=data['goods'],
-#         reversed=data['reversed'],
-#         amount=data['amount'],
-#         payment_method=data['payment_method'],
-#     )
-#     db.session.add(transaction)
-#     db.session.commit()
-#     return jsonify(transaction.to_dict()), 201
-
-
-
 
 
 # @api.route('/transactions/<int:id>', methods=['GET'])
