@@ -38,7 +38,7 @@ def get_transactions():
 def create_transaction():
     data = request.get_json()
     transaction = Transaction(
-        time=datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S'),
+        time=datetime.strptime(data['time'], '%Y-%m-%d %H:%M:%S'),
         source=data['source'],
         expenditure_income=data['expenditure_income'],
         status=data['status'],
@@ -48,11 +48,12 @@ def create_transaction():
         goods=data['goods'],
         reversed=data['reversed'],
         amount=data['amount'],
-        payment_method=data['payment_method'],
+        pay_method=data['pay_method'],
+        processed_amount=data['amount']
     )
     print(transaction)
-    # db.session.add(transaction)
-    # db.session.commit()
+    db.session.add(transaction)
+    db.session.commit()
     return jsonify(transaction.to_dict()), 200
 
 

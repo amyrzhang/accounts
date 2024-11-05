@@ -18,7 +18,7 @@ class Transaction(db.Model):
     reversed = db.Column(db.Boolean, nullable=False, default=False)  # 是否冲账
     amount = db.Column(db.Float, nullable=False)  # 金额
     pay_method = db.Column(db.String(20), nullable=False)  # 支付方式
-    # processed_amount = db.Column(db.Float, nullable=True)  # 处理金额
+    processed_amount = db.Column(db.Float, nullable=True)  # 处理金额
 
     def to_dict(self):
         return {
