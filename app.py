@@ -51,10 +51,33 @@ def create_transaction():
         pay_method=data['pay_method'],
         processed_amount=data['amount']
     )
-    print(transaction)
     db.session.add(transaction)
     db.session.commit()
     return jsonify(transaction.to_dict()), 200
+
+
+@app.route('/transactions/<int:id>', methods=['DELETE'])
+def delete_transaction(id):
+    transaction = Transaction.query.get_or_404(id)
+    db.session.delete(transaction)
+    db.session.commit()
+    return '', 204
+
+
+@app.route('/transactions/<int:id>', methods=['PUT'])
+def update_transaction(id):
+    data = request.get_json()
+    transaction = Transaction.query.get_or_404(id)
+    transaction.category = data['category']
+    transaction.reversed = data['reversed']
+    db.session.commit()
+    return jsonify(transaction.to_dict())
+
+
+@app.route('/transactions/<int:id>', methods=['GET'])
+def get_transaction(id):
+    transaction = Transaction.query.get_or_404(id)
+    return jsonify(transaction.to_dict())
 
 
 @app.route('/api/report', methods=['GET'])
@@ -110,37 +133,8 @@ def upload_file():
         return f"File saved successfully as {file_name}", 200
 
 
-# @api.route('/transactions/<int:id>', methods=['GET'])
-# def get_transaction(id):
-#     transaction = Transaction.query.get_or_404(id)
-#     return jsonify(transaction.to_dict())
-#
-#
-# @api.route('/transactions/<int:id>', methods=['PUT'])
-# def update_transaction(id):
-#     data = request.get_json()
-#     transaction = Transaction.query.get_or_404(id)
-#     transaction.time = datetime.strptime(data['transaction_time'], '%Y-%m-%d %H:%M:%S')
-#     transaction.source = data['source']
-#     transaction.expenditure_income = data['expenditure_income']
-#     transaction.status = data['status']
-#     transaction.type = data['type']
-#     transaction.category = data['category']
-#     transaction.counterparty = data['counterparty']
-#     transaction.goods = data['goods']
-#     transaction.amount = data['amount']
-#     transaction.reversed = data['reversed']
-#     transaction.payment_method = data['payment_method']
-#     db.session.commit()
-#     return jsonify(transaction.to_dict())
-#
-#
-# @api.route('/transactions/<int:id>', methods=['DELETE'])
-# def delete_transaction(id):
-#     transaction = Transaction.query.get_or_404(id)
-#     db.session.delete(transaction)
-#     db.session.commit()
-#     return '', 204
+
+
 
 
 if __name__ == '__main__':
