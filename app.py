@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # 定义API路由
-from flask import Flask, Blueprint, request, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
+from sqlalchemy import desc
 from datetime import datetime
 import os
 
@@ -20,17 +21,14 @@ CORS(app)  # 允许所有来源
 db.init_app(app)
 
 
-# @app.route('/api/data', methods=['GET'])
-# def get_transactions():
-#     a = Analyzer()
-#     a.rename()
-#     if request.args:
-#         a.filter(params=request.args)
-#     return jsonify(a.df.to_dict(orient='records'))
-
 @app.route('/transactions', methods=['GET'])
 def get_transactions():
-    transactions = Transaction.query.all()
+    query = Transaction.query
+    if request.args:
+        for param, value in request.args.items():
+            if hasattr(Transaction, param):
+                query = query.filter(getattr(Transaction, param) == value)
+    transactions = query.order_by(desc(Transaction.time)).all()
     return jsonify([transaction.to_dict() for transaction in transactions])
 
 

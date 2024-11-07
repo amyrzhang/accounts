@@ -33,6 +33,6 @@ class Transaction(db.Model):
             'goods': self.goods,
             'reversed': self.reversed,
             'amount': self.amount,
-            'pay_method': self.pay_method
-            # 'processed_amount': self.processed_amount
+            'pay_method': self.pay_method,
+            'processed_amount': self.processed_amount
         }
