@@ -68,6 +68,7 @@ def delete_transaction(id):
 def update_transaction(id):
     data = request.get_json()
     transaction = Transaction.query.get_or_404(id)
+    transaction.expenditure_income = data['expenditure_income']
     transaction.category = data['category']
     transaction.reversed = data['reversed']
     db.session.commit()
@@ -131,10 +132,6 @@ def upload_file():
         file.save(file_path)
         write_db(file_path)
         return f"File saved successfully as {file_name}", 200
-
-
-
-
 
 
 if __name__ == '__main__':
