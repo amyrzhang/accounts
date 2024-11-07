@@ -1,0 +1,14 @@
+{
+    "time": "2024-09-27 11:28:03",
+    "amount": 7753.90,
+    "category": "工资",
+    "counterparty": "沧州市数据资产登记评价有限公司",
+    "expenditure_income": "收入",
+    "goods": "工资",
+    "pay_method": "民生银行储蓄卡(4827)",
+    "reversed": 0,
+    "source": "手工",
+    "status": "交易成功",
+    "type": "收款成功",
+    "processed_amount": 7753.90
+}
