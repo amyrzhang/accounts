@@ -2,7 +2,7 @@
 # 定义API路由
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from datetime import datetime
 import os
 
@@ -27,7 +27,10 @@ def get_transactions():
     if request.args:
         for param, value in request.args.items():
             if hasattr(Transaction, param):
-                query = query.filter(getattr(Transaction, param) == value)
+                if param == 'time':
+                    query = query.filter(func.date_format(Transaction.time, '%Y-%m') == value)
+                else:
+                    query = query.filter(getattr(Transaction, param) == value)
     transactions = query.order_by(desc(Transaction.time)).all()
     return jsonify([transaction.to_dict() for transaction in transactions])
 
