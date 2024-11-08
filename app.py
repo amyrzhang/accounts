@@ -82,6 +82,29 @@ def get_transaction(id):
     return jsonify(transaction.to_dict())
 
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return "No file part", 400
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file", 400
+    if file:
+        file_name = file.filename
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+        if os.path.exists(file_path):
+            return f"File already exists: {file_name}", 409
+        file.save(file_path)
+        write_db(file_path)
+        return f"File saved successfully as {file_name}", 200
+
+
+@app.route('/api/report/top10', methods=['GET'])
+def get_top10_transactions():
+    transactions = Transaction.query.order_by(desc(Transaction.time)).limit(10).all()
+    return jsonify([transaction.to_dict() for transaction in transactions])
+
+
 @app.route('/api/report', methods=['GET'])
 def get_monthly_report():
     a = Analyzer()
@@ -108,31 +131,7 @@ def get_account_report():
     return jsonify(res.reset_index().to_dict(orient='records'))
 
 
-@app.route('/api/report/top10', methods=['GET'])
-def get_top10_transactions():
-    a = Analyzer()
-    a.filter_monthly()
-    res = a.top10_transactions
-    res['金额'] = res['金额'].apply(format_currency)
-    res['cdf'] = res['cdf'].apply(format_percentage)
-    return jsonify(res.to_dict(orient='records'))
 
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return "No file part", 400
-    file = request.files['file']
-    if file.filename == '':
-        return "No selected file", 400
-    if file:
-        file_name = file.filename
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
-        if os.path.exists(file_path):
-            return f"File already exists: {file_name}", 409
-        file.save(file_path)
-        write_db(file_path)
-        return f"File saved successfully as {file_name}", 200
 
 
 if __name__ == '__main__':
