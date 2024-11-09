@@ -124,7 +124,10 @@ def get_top10_transactions():
         func.max(extract('year', Transaction.time)).label('max_year'),
         func.max(extract('month', Transaction.time)).label('max_month')
     ).subquery()
-    transactions = Transaction.query.with_entities.filter(
+    transactions = Transaction.query.with_entities(
+        Transaction.amount,
+        Transaction.goods
+    ).filter(
         Transaction.expenditure_income == '支出',
         extract('year', Transaction.time) == subquery.c.max_year,
         extract('month', Transaction.time) == subquery.c.max_month
