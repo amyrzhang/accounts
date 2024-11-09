@@ -120,16 +120,15 @@ def get_top10_transactions():
 
 @app.route('/api/report', methods=['GET'])
 def get_monthly_report():
-    max_month = Transaction.query(
+    max_month = Transaction.query.with_entities(
         func.max(extract('year', Transaction.time)).label('max_year'),
         func.max(extract('month', Transaction.time)).label('max_month')
-    ).first()
-    max_year = max_month.max_year
-    max_month = max_month.max_month
+    ).subquery()
+    latest_year = max_month.max_year
+    latest_month = max_month.max_month
     transactions = Transaction.query.filter(
-        Transaction.expenditure_income == '支出',
-        extract('year', Transaction.time) == max_year,
-        extract('month', Transaction.time) == max_month
+        extract('year', Transaction.time) == latest_year,
+        extract('month', Transaction.time) == latest_month
     ).all()
     income_sum = sum([transaction.amount for transaction in transactions if transaction.expenditure_income == '收入'])
     expenditure_sum = sum([transaction.amount for transaction in transactions if transaction.expenditure_income == '支出'])
