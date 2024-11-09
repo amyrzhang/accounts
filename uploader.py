@@ -9,14 +9,12 @@ import chardet
 
 
 def load_to_df(filepath):
-    if '微信支付账单' not in filepath or 'alipay_record' not in filepath:
-        print('文件类型不支持')
-        return None
-    data = pd.DataFrame()
     if '微信支付账单' in filepath:
         data = WeixinProcessor(filepath).df  # 写入数据
     elif 'alipay_record' in filepath:
         data = AlipayProcessor(filepath).df  # 写入数据
+    else:
+        return f'Unsupported file type', 400
     data.rename(columns={'amount': 'processed_amount'}, inplace=True)
     data.rename(columns={
         '交易时间': 'time',
