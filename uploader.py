@@ -8,15 +8,30 @@ import json
 import chardet
 
 
-def write_db(filepath):
-    if '微信支付账单' in filepath:
-        dp = WeixinProcessor(filepath)  # 写入数据
-    elif 'alipay_record' in filepath:
-        dp = AlipayProcessor(filepath)  # 写入数据
-    else:
+def load_to_df(filepath):
+    if '微信支付账单' not in filepath or 'alipay_record' not in filepath:
         print('文件类型不支持')
         return None
-    dp.write()
+    data = pd.DataFrame()
+    if '微信支付账单' in filepath:
+        data = WeixinProcessor(filepath).df  # 写入数据
+    elif 'alipay_record' in filepath:
+        data = AlipayProcessor(filepath).df  # 写入数据
+    data.rename(columns={'amount': 'processed_amount'}, inplace=True)
+    data.rename(columns={
+        '交易时间': 'time',
+        '来源': 'source',
+        '收/支': 'expenditure_income',
+        '支付状态': 'status',
+        '类型': 'type',
+        'category': 'category',
+        '交易对方': 'counterparty',
+        '商品': 'goods',
+        '是否冲账': 'reversed',
+        '金额': 'amount',
+        '支付方式': 'pay_method'
+    }, inplace=True)
+    return data
 
 
 class Processor:

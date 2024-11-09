@@ -2,7 +2,7 @@
 # 定义API路由
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from sqlalchemy import desc, func, extract
+from sqlalchemy import desc, func, extract, create_engine
 import pandas as pd
 from datetime import datetime
 import os
@@ -10,8 +10,7 @@ import os
 from models import db, Transaction
 from config import Config
 from query import Analyzer
-from uploader import write_db
-from uploader import WeixinProcessor, AlipayProcessor
+from uploader import load_to_df
 from utils import format_currency, format_percentage
 
 
@@ -19,6 +18,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
 CORS(app)  # 允许所有来源
 db.init_app(app)
 
@@ -97,13 +97,8 @@ def upload_file():
         if os.path.exists(file_path):
             return f"File already exists: {file_name}", 409
         file.save(file_path)
-
-        dp = pd.DataFrame()
-        if '微信支付账单' in file_path:
-            dp = WeixinProcessor(file_path)  # 写入数据
-        elif 'alipay_record' in filepath:
-            dp = AlipayProcessor(file_path)  # 写入数据
-        dp.to_sql('transaction', con=db.engine, if_exists='append', index=False)
+        data = load_to_df(file_path)
+        data.to_sql('transaction', con=db.engine, if_exists='append', index=False)
         return f"File saved successfully as {file_name}", 200
 
 
