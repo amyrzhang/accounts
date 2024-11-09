@@ -2,7 +2,7 @@
 # 定义API路由
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, extract
 from datetime import datetime
 import os
 
