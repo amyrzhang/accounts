@@ -132,7 +132,9 @@ def get_top10_transactions():
         extract('year', Transaction.time) == subquery.c.max_year,
         extract('month', Transaction.time) == subquery.c.max_month
     ).order_by(Transaction.amount.desc()).limit(10).all()
-    return jsonify([transaction.to_dict() for transaction in transactions])
+    return jsonify(
+        [{'amount': format_currency(transaction.amount), 'goods': transaction.goods} for transaction in transactions]
+    )
 
 
 @app.route('/api/report/category', methods=['GET'])
