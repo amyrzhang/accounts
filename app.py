@@ -99,25 +99,6 @@ def upload_file():
         return f"File saved successfully as {file_name}", 200
 
 
-@app.route('/api/report/top10', methods=['GET'])
-def get_top10_transactions():
-    max_month = Transaction.query(
-        func.max(extract('year', Transaction.time)).label('max_year'),
-        func.max(extract('month', Transaction.time)).label('max_month')
-    ).first()
-    max_year = max_month.max_year
-    max_month = max_month.max_month
-    transactions = Transaction.query(
-        Transaction.goods,
-        Transaction.amount
-    ).filter(
-        Transaction.expenditure_income == '支出',
-        extract('year', Transaction.time) == max_year,
-        extract('month', Transaction.time) == max_month
-    ).order_by(Transaction.amount.desc()).limit(10).all()
-    return jsonify([transaction.to_dict() for transaction in transactions])
-
-
 @app.route('/api/report', methods=['GET'])
 def get_monthly_report():
     subquery = Transaction.query.with_entities(
@@ -135,6 +116,20 @@ def get_monthly_report():
         'income': income_sum,
         'balance': income_sum - expenditure_sum
     })
+
+
+@app.route('/api/report/top10', methods=['GET'])
+def get_top10_transactions():
+    subquery = Transaction.query.with_entities(
+        func.max(extract('year', Transaction.time)).label('max_year'),
+        func.max(extract('month', Transaction.time)).label('max_month')
+    ).subquery()
+    transactions = Transaction.query.filter(
+        Transaction.expenditure_income == '支出',
+        extract('year', Transaction.time) == subquery.c.max_year,
+        extract('month', Transaction.time) == subquery.c.max_month
+    ).order_by(Transaction.amount.desc()).limit(10).all()
+    return jsonify([transaction.to_dict() for transaction in transactions])
 
 
 @app.route('/api/report/category', methods=['GET'])
