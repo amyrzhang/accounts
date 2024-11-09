@@ -101,7 +101,20 @@ def upload_file():
 
 @app.route('/api/report/top10', methods=['GET'])
 def get_top10_transactions():
-    transactions = Transaction.query.order_by(desc(Transaction.time)).limit(10).all()
+    max_month = Transaction.query(
+        func.max(extract('year', Transaction.time)).label('max_year'),
+        func.max(extract('month', Transaction.time)).label('max_month')
+    ).first()
+    max_year = max_month.max_year
+    max_month = max_month.max_month
+    transactions = Transaction.query(
+        Transaction.goods,
+        Transaction.amount
+    ).filter(
+        Transaction.expenditure_income == '支出',
+        extract('year', Transaction.time) == max_year,
+        extract('month', Transaction.time) == max_month
+    ).order_by(Transaction.amount.desc()).limit(10).all()
     return jsonify([transaction.to_dict() for transaction in transactions])
 
 
@@ -129,9 +142,6 @@ def get_account_report():
     a.filter_monthly()
     res = a.account_sums
     return jsonify(res.reset_index().to_dict(orient='records'))
-
-
-
 
 
 if __name__ == '__main__':
