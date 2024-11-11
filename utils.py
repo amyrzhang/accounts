@@ -13,4 +13,4 @@ def format_currency(number):
 
 
 def format_percentage(number):
-    return f"{number * 100:.2f}%"
+    return f"{number:.2f}%"

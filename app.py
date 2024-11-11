@@ -2,12 +2,12 @@
 # 定义API路由
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from sqlalchemy import desc, func, extract, create_engine
+from sqlalchemy import desc, func, extract
 import pandas as pd
 from datetime import datetime
 import os
 
-from models import db, Transaction
+from models import db, Transaction, MonthlyTransaction
 from config import Config
 from query import Analyzer
 from uploader import load_to_df
@@ -123,20 +123,17 @@ def get_monthly_report():
 
 @app.route('/api/report/top10', methods=['GET'])
 def get_top10_transactions():
-    subquery = Transaction.query.with_entities(
-        func.max(extract('year', Transaction.time)).label('max_year'),
-        func.max(extract('month', Transaction.time)).label('max_month')
-    ).subquery()
-    transactions = Transaction.query.with_entities(
-        Transaction.amount,
-        Transaction.goods
-    ).filter(
-        Transaction.expenditure_income == '支出',
-        extract('year', Transaction.time) == subquery.c.max_year,
-        extract('month', Transaction.time) == subquery.c.max_month
-    ).order_by(Transaction.amount.desc()).limit(10).all()
+    transactions = MonthlyTransaction.query.with_entities(
+        MonthlyTransaction.goods,
+        MonthlyTransaction.amount,
+        MonthlyTransaction.cdf
+    ).limit(10).all()
     return jsonify(
-        [{'amount': format_currency(transaction.amount), 'goods': transaction.goods} for transaction in transactions]
+        [{
+            'amount': format_currency(transaction.amount),
+            'goods': transaction.goods,
+            'cdf': format_percentage(transaction.cdf)
+        } for transaction in transactions]
     )
 
 

@@ -36,3 +36,28 @@ class Transaction(db.Model):
             'pay_method': self.pay_method,
             'processed_amount': self.processed_amount
         }
+
+
+class MonthlyTransaction(db.Model):
+    __tablename__ = 'monthly_expenditure_cdf'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    month = db.Column(db.String(7), nullable=False)
+    category = db.Column(db.String(128), nullable=False)
+    counterparty = db.Column(db.String(128), nullable=False)
+    goods = db.Column(db.String(128), nullable=False)
+    amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
+    percent = db.Column(db.Numeric(precision=19, scale=2), nullable=False)
+    cdf = db.Column(db.Numeric(precision=41, scale=2), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'month': self.month,
+            'category': self.category,
+            'counterparty': self.counterparty,
+            'goods': self.goods,
+            'amount': self.amount,
+            'percent': self.percent,
+            'cdf': self.cdf
+        }
