@@ -17,15 +17,15 @@ with transfer_tb as (select date_format(time, '%Y-%m') as month
                           , pay_method
                           , amount
                      from money_track.transaction
-                     where pay_method regexp '^.{2}银行.{2}卡\\([0-9]{4}\\)$' # 用收付款账户都是银行卡判断【转账】
-                       and counterparty regexp '^.{2}银行.{2}卡\\([0-9]{4}\\)$'),
+                     where pay_method regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$' # 用收付款账户都是银行卡判断【转账】
+                       and counterparty regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$'),
      spending_tb as (select date_format(time, '%Y-%m') as month
                           , expenditure_income
                           , pay_method
                           , amount
                      from money_track.transaction
-                     where not (pay_method regexp '^.{2}银行.{2}卡\\([0-9]{4}\\)$'
-                         and counterparty regexp '^.{2}银行.{2}卡\\([0-9]{4}\\)$')),
+                     where not (pay_method regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$'
+                         and counterparty regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$')),
      transaction_tb as (select month, expenditure_income, pay_method, amount
                         from spending_tb
                         union all
