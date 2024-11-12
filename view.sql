@@ -9,9 +9,10 @@ from (select date_format(time, '%Y-%m')                      as month
 order by month desc;
 
 
-# 月度卡粒度收支
-create view monthly_card_balance as
-with transfer_tb as (select date_format(time, '%Y-%m') as month
+# 卡余额
+# drop view card_balance;
+# create view card_balance as
+with transfer_tb as (select time
                           , expenditure_income
                           , counterparty
                           , pay_method
@@ -19,32 +20,77 @@ with transfer_tb as (select date_format(time, '%Y-%m') as month
                      from money_track.transaction
                      where pay_method regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$' # 用收付款账户都是银行卡判断【转账】
                        and counterparty regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$'),
-     spending_tb as (select date_format(time, '%Y-%m') as month
+     spending_tb as (select time
                           , expenditure_income
+                          , counterparty
                           , pay_method
                           , amount
                      from money_track.transaction
                      where not (pay_method regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$'
                          and counterparty regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$')),
-     transaction_tb as (select month, expenditure_income, pay_method, amount
+     transaction_tb as (select time, expenditure_income, counterparty, pay_method, amount
                         from spending_tb
                         union all
-                        select month, '支出' as expenditure_income, pay_method, amount
+                        select
+                            time
+                             , '支出' as expenditure_income
+                             , counterparty
+                             , pay_method
+                             , amount
                         from transfer_tb
                         union all
-                        select month, '收入' as expenditure_income, counterparty as pay_method, amount
+                        select
+                            time
+                             , '收入' as expenditure_income
+                             , pay_method as counterparty
+                             , counterparty as pay_method
+                             , amount
                         from transfer_tb)
-select month
-     , pay_method
-     , sum(income - expenditure) as balance
-     , sum(income)               as income
-     , sum(expenditure)          as expenditure
-from (select *
-           , if(expenditure_income = '收入', amount, 0) as income
-           , if(expenditure_income = '支出', amount, 0) as expenditure
-      from transaction_tb) tb
+
+select date_format(time, '%Y-%m')                      as month
+     , pay_method                                      as card
+     , sum(case
+               when expenditure_income = '收入' then amount
+               when expenditure_income = '支出' then -amount
+               else 0 end)                             as balance
+     , sum(if(expenditure_income = '收入', amount, 0)) as income
+     , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
+from transaction_tb
 group by month, pay_method
 order by month desc, pay_method desc;
+
+
+select *
+from transaction
+where amount >=1000;
+
+
+select date_format(time, '%Y-%m') as month,
+       sum(case when expenditure_income = '收入' then amount
+                when expenditure_income = '支出' then -amount
+       else 0 end) as balance,
+        sum(if(expenditure_income = '收入', amount, 0)) as income,
+        sum(if(expenditure_income = '支出', amount, 0)) as expenditure
+from transaction
+group by month;
+
+select sum(case when expenditure_income='支出' then amount else 0 end) as amount
+from transaction
+where amount >= 1000;
+
+
+# 月度卡对账单
+# select date_format(time, '%Y-%m')                      as month
+#      , pay_method                                      as card
+#      , sum(case
+#                when expenditure_income = '收入' then amount
+#                when expenditure_income = '支出' then -amount
+#                else 0 end)                             as balance
+#      , sum(if(expenditure_income = '收入', amount, 0)) as income
+#      , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
+# from transaction_tb
+# group by month, pay_method
+# order by month desc, pay_method desc;
 
 
 
