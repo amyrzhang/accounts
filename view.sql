@@ -64,37 +64,10 @@ from transaction_tb;
 
 
 
-# 校准不计收支账单
-select date_format(time, '%Y-%m') as month,
-       sum(case when expenditure_income = '收入' then amount
-                when expenditure_income = '支出' then -amount
-       else 0 end) as balance,
-        sum(if(expenditure_income = '收入', amount, 0)) as income,
-        sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-from transaction
-group by month;
 
-select sum(case when expenditure_income='支出' then amount else 0 end) as amount
-from transaction
-where amount >= 1000;
-
-
-# 月度卡对账单
-# select date_format(time, '%Y-%m')                      as month
-#      , pay_method                                      as card
-#      , sum(case
-#                when expenditure_income = '收入' then amount
-#                when expenditure_income = '支出' then -amount
-#                else 0 end)                             as balance
-#      , sum(if(expenditure_income = '收入', amount, 0)) as income
-#      , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-# from transaction_tb
-# group by month, pay_method
-# order by month desc, pay_method desc;
-
-
-select-- date_format(time, '%Y-%m')                      as month
-      pay_method                                      as card
+# 月度卡对账单 - 用于校验数据读入
+select date_format(time, '%Y-%m')                      as month
+     , pay_method                                      as card
      , sum(case
                when expenditure_income = '收入' then amount
                when expenditure_income = '支出' then -amount
@@ -102,8 +75,20 @@ select-- date_format(time, '%Y-%m')                      as month
      , sum(if(expenditure_income = '收入', amount, 0)) as income
      , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
 from card_balance
-group by  pay_method
-order by  pay_method desc;
+group by month, pay_method
+order by month desc, pay_method desc;
+
+# 月度收支对账单 - 用于统计月度收支
+select date_format(time, '%Y-%m')                      as month
+     , sum(case
+               when expenditure_income = '收入' then amount
+               when expenditure_income = '支出' then -amount
+               else 0 end)                             as balance
+     , sum(if(expenditure_income = '收入', amount, 0)) as income
+     , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
+from card_balance
+group by month
+order by month desc;
 
 
 
