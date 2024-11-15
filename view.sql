@@ -167,7 +167,7 @@ select date_format(time, '%Y-%m')                      as month
                else 0 end)                             as balance
      , sum(if(expenditure_income = '收入', amount, 0)) as income
      , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-from card_transabtion
+from transaction
 group by month
 order by month desc;
 
@@ -189,30 +189,21 @@ from (select date_format(time, '%Y-%m') as month
 order by month desc, amount desc;
 
 
-# 月度支出交易累积占比
+# 月度支出交易累积占比 -- 带冲账标记
 create view monthly_expenditure_cdf as
 select cat.month
+     , cat.id
      , cat.category
-     , cat.counterparty
-     , cat.goods
      , cat.amount
      , (cat.amount / tot.expenditure) * 100                                                             as percent
      , sum((cat.amount / tot.expenditure) * 100) over (partition by cat.month order by cat.amount desc) as cdf
-from (select date_format(time, '%Y-%m') as month
-           , category
-           , counterparty
-           , goods
-           , amount
-      from money_track.transaction cat
+     , cat.counterparty
+     , cat.goods
+from (select *, date_format(time, '%Y-%m') as month
+      from transaction cat
       where expenditure_income = '支出'
+        and reversed = 0
       order by month desc, amount desc) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
-
-
-
-
-
-
-
 
