@@ -45,29 +45,12 @@ SELECT
 FROM asset_info a
          left join (SELECT *,
                            ROW_NUMBER() OVER (PARTITION BY pay_method ORDER BY time DESC) AS rn
-                    FROM card_balance) t on a.asset_name = t.pay_method
+                    FROM card_transabtion) t on a.asset_name = t.pay_method
 WHERE a.is_active = 1
   and a.is_included = 1
   and t.rn = 1;
 
 
-
-
-
-select distinct pay_method
-from card_balance;
-
-
-
-# 月度收支
-create view monthly_balance as
-select month, income - expenditure as balance, income, expenditure
-from (select date_format(time, '%Y-%m')                      as month
-           , sum(if(expenditure_income = '收入', amount, 0)) as income
-           , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-      from money_track.transaction
-      group by month) tb
-order by month desc;
 
 
 # 卡余额
@@ -141,7 +124,7 @@ from asset_info a
                                    else 0 end)                             as balance
                          , sum(if(expenditure_income = '收入', amount, 0)) as income
                          , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-                    from card_balance
+                    from card_transabtion
                     group by pay_method) t
                    on a.asset_name = t.pay_method
 order by asset_type desc, balance desc
@@ -159,6 +142,7 @@ where is_active = 1
 group by asset_type;
 
 # 月度卡对账单 - 用于校验数据读入
+create view monthly_card_balance as
 select date_format(time, '%Y-%m')                      as month
      , pay_method                                      as card
      , sum(case
@@ -167,11 +151,15 @@ select date_format(time, '%Y-%m')                      as month
                else 0 end)                             as balance
      , sum(if(expenditure_income = '收入', amount, 0)) as income
      , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-from card_balance
+from card_transabtion
 group by month, pay_method
 order by month desc, pay_method desc;
 
+
+
+
 # 月度收支对账单 - 用于统计月度收支
+create view monthly_balance as
 select date_format(time, '%Y-%m')                      as month
      , sum(case
                when expenditure_income = '收入' then amount
@@ -179,7 +167,7 @@ select date_format(time, '%Y-%m')                      as month
                else 0 end)                             as balance
      , sum(if(expenditure_income = '收入', amount, 0)) as income
      , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-from card_balance
+from card_transabtion
 group by month
 order by month desc;
 
@@ -220,6 +208,9 @@ from (select date_format(time, '%Y-%m') as month
       order by month desc, amount desc) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
+
+
+
 
 
 
