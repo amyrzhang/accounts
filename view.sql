@@ -1,6 +1,63 @@
+# 收支记录表
+CREATE TABLE `transaction` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `time` datetime NOT NULL,
+  `source` varchar(128) NOT NULL,
+  `expenditure_income` varchar(10) NOT NULL,
+  `status` varchar(10) DEFAULT NULL,
+  `type` varchar(10) DEFAULT NULL,
+  `category` varchar(128) NOT NULL,
+  `counterparty` varchar(128) DEFAULT NULL,
+  `goods` varchar(128) NOT NULL,
+  `reversed` tinyint(1) NOT NULL DEFAULT '0',
+  `amount` decimal(10,2) NOT NULL,
+  `pay_method` varchar(20) NOT NULL,
+  `processed_amount` decimal(10,2) DEFAULT '0.00',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=388 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 # 历史余额
 # INSERT INTO transaction (time, source, expenditure_income, counterparty, pay_method, amount, category, goods)
-# VALUES ('2024-06-30 23:59:59', '手工', '收入', '', '民生银行储蓄卡(4827)',  675.72, '历史余额', '历史余额');
+# VALUES ('2024-06-30 21:28:17', '手工', '收入', '', '民生银行储蓄卡(4827)',  675.72, '历史余额', '历史余额');
+
+# 资产信息表
+CREATE TABLE `asset_info` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `asset_name` varchar(255) NOT NULL,
+  `asset_type` varchar(50) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `is_included` tinyint(1) NOT NULL DEFAULT '1',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+
+
+
+
+SELECT
+    a.asset_name
+     , asset_type
+     , t.balance
+     , t.balance as total
+FROM asset_info a
+         left join (SELECT *,
+                           ROW_NUMBER() OVER (PARTITION BY pay_method ORDER BY time DESC) AS rn
+                    FROM card_balance) t on a.asset_name = t.pay_method
+WHERE a.is_active = 1
+  and a.is_included = 1
+  and t.rn = 1;
+
+
+
+
+
+select distinct pay_method
+from card_balance;
+
+
 
 # 月度收支
 create view monthly_balance as
@@ -62,8 +119,44 @@ select *,
                else 0 end) over (partition by pay_method order by time asc) as balance
 from transaction_tb;
 
+# 资产余额表更新
+create view asset_balance as
+select a.id
+     , a.asset_name
+     , a.asset_type
+     , t.balance
+     , t.income
+     , t.expenditure
+     , t.create_time
+     , t.update_time
+     , a.is_active
+     , a.is_included
+from asset_info a
+         left join (select pay_method
+                         , min(time)                                       as create_time
+                         , max(time)                                       as update_time
+                         , sum(case
+                                   when expenditure_income = '收入' then amount
+                                   when expenditure_income = '支出' then -amount
+                                   else 0 end)                             as balance
+                         , sum(if(expenditure_income = '收入', amount, 0)) as income
+                         , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
+                    from card_balance
+                    group by pay_method) t
+                   on a.asset_name = t.pay_method
+order by asset_type desc, balance desc
+;
 
-
+# 查询资产余额
+select asset_type
+     , sum(balance)     as tot_balance
+     , sum(income)      as tot_income
+     , sum(expenditure) as tot_expenditure
+     , max(update_time) as update_time
+from asset_balance
+where is_active = 1
+  and is_included = 1
+group by asset_type;
 
 # 月度卡对账单 - 用于校验数据读入
 select date_format(time, '%Y-%m')                      as month
@@ -127,4 +220,8 @@ from (select date_format(time, '%Y-%m') as month
       order by month desc, amount desc) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
+
+
+
+
 
