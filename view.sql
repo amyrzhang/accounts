@@ -45,7 +45,7 @@ SELECT
 FROM asset_info a
          left join (SELECT *,
                            ROW_NUMBER() OVER (PARTITION BY pay_method ORDER BY time DESC) AS rn
-                    FROM card_transabtion) t on a.asset_name = t.pay_method
+                    FROM card_transaction) t on a.asset_name = t.pay_method
 WHERE a.is_active = 1
   and a.is_included = 1
   and t.rn = 1;
@@ -124,7 +124,7 @@ from asset_info a
                                    else 0 end)                             as balance
                          , sum(if(expenditure_income = '收入', amount, 0)) as income
                          , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-                    from card_transabtion
+                    from card_transaction
                     group by pay_method) t
                    on a.asset_name = t.pay_method
 order by asset_type desc, balance desc
@@ -151,7 +151,7 @@ select date_format(time, '%Y-%m')                      as month
                else 0 end)                             as balance
      , sum(if(expenditure_income = '收入', amount, 0)) as income
      , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
-from card_transabtion
+from card_transaction
 group by month, pay_method
 order by month desc, pay_method desc;
 
