@@ -142,6 +142,7 @@ where is_active = 1
 group by asset_type;
 
 # 月度卡对账单 - 用于校验数据读入
+# TODO: 待完善，若该月无交易，无法拉取各卡数据
 create view monthly_card_balance as
 select date_format(time, '%Y-%m')                      as month
      , pay_method                                      as card
