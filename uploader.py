@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from idlelib.iomenu import encoding
+
 import numpy as np
 import re
 import pandas as pd
@@ -39,7 +41,11 @@ class Processor:
 
     @property
     def balance(self):
-        with open(self.path, 'r', encoding=self.encoding) as f:
+        if 'alipay' in self.path:
+            file_encoding = 'gbk'
+        else:
+            file_encoding = self.encoding
+        with open(self.path, 'r', encoding=file_encoding) as f:
             text = f.read()
             # 定义正则表达式
             income_pattern = r'收入：\d+笔\s+(\d+\.\d+)元'
