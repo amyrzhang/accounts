@@ -278,7 +278,7 @@ def process_category_row(row):
     """识别交易类别"""
     text = row['交易对方'] + ' ' + row['商品']
     shopping_pattern = '平台商户|抖音电商商家|快递'  # 根据交易对方判断
-    transportation_pattern = '出行|加油|中铁|12306'  # 根据二者判断
+    transportation_pattern = '出行|加油|停车|中铁|12306'  # 根据二者判断
     telecommunication_pattern = '联通'  # 根据交易对方判断
     salary_pattern = '工资'
     if re.search(shopping_pattern, text):
