@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from idlelib.iomenu import encoding
-
 import numpy as np
 import re
 import pandas as pd
