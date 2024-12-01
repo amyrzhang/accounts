@@ -39,6 +39,8 @@ class Processor:
 
     @property
     def balance(self):
+        if 'alipay' in self.path:
+            self.encoding = 'gbk'
         with open(self.path, 'r', encoding=self.encoding) as f:
             text = f.read()
             # 定义正则表达式
