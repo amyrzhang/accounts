@@ -184,7 +184,11 @@ class AlipayProcessor(Processor):
         return super().balance
 
     def read_data(self):  # 获取支付宝数据
-        df = pd.read_csv(self.path, header=22, encoding=self.encoding)  # 数据获取，支付宝
+        """
+        支付宝账单编码方式：GBK
+        :return:
+        """
+        df = pd.read_csv(self.path, header=22, encoding='gbk')  # 支付宝
         df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
         df['金额'] = df['金额'].astype('float64')  # 数据类型更改
 
