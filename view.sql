@@ -1,51 +1,12 @@
-# 收支记录表
-CREATE TABLE `transaction` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `time` datetime NOT NULL,
-  `source` varchar(128) NOT NULL,
-  `expenditure_income` varchar(10) NOT NULL,
-  `status` varchar(10) DEFAULT NULL,
-  `type` varchar(10) DEFAULT NULL,
-  `category` varchar(128) NOT NULL,
-  `counterparty` varchar(128) DEFAULT NULL,
-  `goods` varchar(128) NOT NULL,
-  `reversed` tinyint(1) NOT NULL DEFAULT '0',
-  `amount` decimal(10,2) NOT NULL,
-  `pay_method` varchar(20) NOT NULL,
-  `processed_amount` decimal(10,2) DEFAULT '0.00',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=388 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-# 历史余额
-# INSERT INTO transaction (time, source, expenditure_income, counterparty, pay_method, amount, category, goods)
-# VALUES ('2024-06-30 21:28:17', '手工', '收入', '', '民生银行储蓄卡(4827)',  675.72, '历史余额', '历史余额');
-
-# 资产信息表
-CREATE TABLE `asset_info` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `asset_name` varchar(255) NOT NULL,
-  `asset_type` varchar(50) NOT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `is_included` tinyint(1) NOT NULL DEFAULT '1',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
-  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-
-
-
-
-
 SELECT
-    a.asset_name
-     , asset_type
+    a.account_name
+     , account_type
      , t.balance
      , t.balance as total
-FROM asset_info a
+FROM account_info a
          left join (SELECT *,
                            ROW_NUMBER() OVER (PARTITION BY pay_method ORDER BY time DESC) AS rn
-                    FROM card_transaction) t on a.asset_name = t.pay_method
+                    FROM card_transaction) t on a.account_name = t.pay_method
 WHERE a.is_active = 1
   and a.is_included = 1
   and t.rn = 1;
@@ -57,12 +18,12 @@ WHERE a.is_active = 1
 create view card_balance as
 with transfer_tb as (select *
                      from money_track.transaction
-                     where pay_method regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$' # 用收付款账户都是银行卡判断【转账】
-                       and counterparty regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$'),
+                     where pay_method regexp '^\\([0-9]{4}\\)$' # 用收付款账户都是银行卡判断【转账】
+                       and counterparty regexp '^\\([0-9]{4}\\)$'),
      spending_tb as (select *
                      from money_track.transaction
-                     where not (pay_method regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$'
-                         and counterparty regexp '^.{2}银行储蓄卡\\([0-9]{4}\\)$')), # 空值无法匹配
+                     where not (pay_method regexp '^\\([0-9]{4}\\)$'
+                         and counterparty regexp '^\\([0-9]{4}\\)$')), # 空值无法匹配
      transaction_tb as (select *
                         from spending_tb
                         union all
@@ -103,10 +64,10 @@ select *,
 from transaction_tb;
 
 # 资产余额表更新
-create view asset_balance as
+create view account_balance as
 select a.id
-     , a.asset_name
-     , a.asset_type
+     , a.account_name
+     , a.account_type
      , t.balance
      , t.income
      , t.expenditure
@@ -114,7 +75,7 @@ select a.id
      , t.update_time
      , a.is_active
      , a.is_included
-from asset_info a
+from account_info a
          left join (select pay_method
                          , min(time)                                       as create_time
                          , max(time)                                       as update_time
@@ -126,12 +87,12 @@ from asset_info a
                          , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
                     from card_transaction
                     group by pay_method) t
-                   on a.asset_name = t.pay_method
-order by asset_type desc, balance desc
+                   on a.account_name = t.pay_method
+order by account_type desc, balance desc
 ;
 
 # 查询资产余额
-select asset_type
+select account_type
      , sum(balance)     as tot_balance
      , sum(income)      as tot_income
      , sum(expenditure) as tot_expenditure
@@ -139,7 +100,7 @@ select asset_type
 from asset_balance
 where is_active = 1
   and is_included = 1
-group by asset_type;
+group by account_type;
 
 # 月度卡对账单 - 用于校验数据读入
 # TODO: 待完善，若该月无交易，无法拉取各卡数据
