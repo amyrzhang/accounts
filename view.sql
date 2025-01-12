@@ -142,25 +142,25 @@ from account_info a
 order by account_type desc, balance desc;
 
 
-# 月度收支对账单：用于统计月度收支，注意收入的枚举值
+# 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
+drop view if exists monthly_balance;
 create view monthly_balance as
 select month
        , balance
-       , balance / salary * 100 as savings_rate
-       , salary
-       , tb.salary - tb.balance as consumption
        , income
-       , expenditure
+       , tb.income - tb.balance as expenditure
+       , credit
+       , debit
 from (select date_format(time, '%Y-%m')                      as month
            , sum(case
                      when expenditure_income = '收入' then amount
                      when expenditure_income = '支出' then -amount
                      else 0 end)                             as balance
            , sum(case
-                     when expenditure_income = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益' then amount
-                     else 0 end)                             as salary
-           , sum(if(expenditure_income = '收入', amount, 0)) as income
-           , sum(if(expenditure_income = '支出', amount, 0)) as expenditure
+                     when expenditure_income = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职' then amount
+                     else 0 end)                             as income
+           , sum(if(expenditure_income = '收入', amount, 0)) as credit
+           , sum(if(expenditure_income = '支出', amount, 0)) as debit
       from transaction
       group by month) tb
 order by month;
