@@ -39,7 +39,11 @@ class Processor:
 
     @property
     def balance(self):
-        with open(self.path, 'r', encoding=self.encoding) as f:
+        if 'alipay' in self.path:
+            file_encoding = 'gbk'
+        else:
+            file_encoding = self.encoding
+        with open(self.path, 'r', encoding=file_encoding) as f:
             text = f.read()
             # 定义正则表达式
             income_pattern = r'收入：\d+笔\s+(\d+\.\d+)元'
@@ -184,7 +188,11 @@ class AlipayProcessor(Processor):
         return super().balance
 
     def read_data(self):  # 获取支付宝数据
-        df = pd.read_csv(self.path, header=22, encoding=self.encoding)  # 数据获取，支付宝
+        """
+        支付宝账单编码方式：GBK
+        :return:
+        """
+        df = pd.read_csv(self.path, header=22, encoding='gbk')  # 支付宝
         df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
         df['金额'] = df['金额'].astype('float64')  # 数据类型更改
 
@@ -278,7 +286,7 @@ def process_category_row(row):
     """识别交易类别"""
     text = row['交易对方'] + ' ' + row['商品']
     shopping_pattern = '平台商户|抖音电商商家|快递'  # 根据交易对方判断
-    transportation_pattern = '出行|加油|中铁|12306'  # 根据二者判断
+    transportation_pattern = '出行|加油|停车|中铁|12306'  # 根据二者判断
     telecommunication_pattern = '联通'  # 根据交易对方判断
     salary_pattern = '工资'
     if re.search(shopping_pattern, text):
