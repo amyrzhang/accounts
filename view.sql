@@ -116,30 +116,45 @@ order by time desc;
 
 # 资产余额表更新
 create view account_balance as
-select a.id
-     , a.account_name
-     , a.account_type
-     , t.balance
-     , t.income
-     , t.expenditure
-     , t.create_time
-     , t.update_time
-     , a.is_active
-     , a.is_included
-from account_info a
-         left join (select pay_method
-                         , min(time)                                       as create_time
-                         , max(time)                                       as update_time
-                         , sum(case
-                                   when exp_income = '收入' then amount
-                                   when exp_income = '支出' then -amount
-                                   else 0 end)                             as balance
-                         , sum(if(exp_income = '收入', amount, 0)) as income
-                         , sum(if(exp_income = '支出', amount, 0)) as expenditure
-                    from card_balance
-                    group by pay_method) t
-                   on a.account_name = t.pay_method
-order by account_type desc, balance desc;
+with base_tb as (
+    select a.id
+         , a.account_name
+         , a.account_type
+         , t.balance
+         , t.income
+         , t.expenditure
+         , t.create_time
+         , t.update_time
+         , a.is_included
+    from account_info a
+             left join (select pay_method
+                             , min(time)                                       as create_time
+                             , max(time)                                       as update_time
+                             , sum(case
+                                       when exp_income = '收入' then amount
+                                       when exp_income = '支出' then -amount
+                                       else 0 end)                             as balance
+                             , sum(if(exp_income = '收入', amount, 0)) as income
+                             , sum(if(exp_income = '支出', amount, 0)) as expenditure
+                        from card_balance
+                        group by pay_method) t
+                       on a.account_name = t.pay_method
+    where is_active = 1
+    order by account_type desc, balance desc
+)
+select max(id) as id
+      , '' as account_name
+      , '' as account_type
+      , sum(if(is_included=1, balance, 0)) as balance
+      , sum(if(is_included=1, income, 0)) as credit
+      , sum(if(is_included=1, expenditure, 0)) as debit
+      , max(create_time) as create_time
+     , max(update_time) as update_time
+     , sum(is_included) as is_included
+from base_tb
+union all
+select *
+from base_tb;
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
