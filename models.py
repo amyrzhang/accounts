@@ -55,31 +55,29 @@ class MonthlyExpCategory(db.Model):
         }
 
 
-# class MonthlyExpCDF(db.Model):
-#     __tablename__ = 'monthly_exp_cdf'
-#     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-#     month = db.Column(db.String(7), nullable=False)
-#     exp_income = db.Column(db.String(10), nullable=False)
-#     category = db.Column(db.String(128), nullable=False)
-#     amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
-#     percent = db.Column(db.Numeric(precision=19, scale=2), nullable=False)
-#     cdf = db.Column(db.Numeric(precision=41, scale=2), nullable=False)
-#     counterparty = db.Column(db.String(128), nullable=False)
-#     goods = db.Column(db.String(128), nullable=False)
-#
-#     __table_args__ = (
-#         PrimaryKeyConstraint('month', 'exp_income', 'category'),
-#     )
-#
-#     def to_dict(self):
-#         return {
-#             'id': self.id,
-#             'month': self.month,
-#             'exp_income': self.exp_income,
-#             'category': self.category,
-#             'amount': self.amount,
-#             'percent': self.percent,
-#             'cdf': self.cdf,
-#             'counterparty': self.counterparty,
-#             'goods': self.goods
-#         }
+class MonthlyExpCDF(db.Model):
+    __tablename__ = 'monthly_exp_cdf'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    month = db.Column(db.String(7), nullable=False)
+    category = db.Column(db.String(128), nullable=False)
+    amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
+    percent = db.Column(db.Numeric(precision=19, scale=2), nullable=False)
+    cdf = db.Column(db.Numeric(precision=41, scale=2), nullable=False)
+    counterparty = db.Column(db.String(128), nullable=False)
+    goods = db.Column(db.String(128), nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint('month', 'cdf'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'month': self.month,
+            'category': self.category,
+            'amount': self.amount,
+            'percent': self.percent,
+            'cdf': self.cdf,
+            'counterparty': self.counterparty,
+            'goods': self.goods
+        }

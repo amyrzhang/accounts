@@ -197,10 +197,10 @@ order by month desc, amount desc;
 
 
 # 月度支出交易累积占比 -- 带冲账标记
+drop view if exists monthly_exp_cdf;
 create view monthly_exp_cdf as
 select cat.id
      , cat.month
-     , cat.expenditure_income as exp_income
      , cat.category
      , cat.amount
      , (cat.amount / tot.expenditure) * 100                                                             as percent
@@ -210,7 +210,6 @@ select cat.id
 from (select *, date_format(time, '%Y-%m') as month
       from transaction cat
       where expenditure_income = '支出'
-#         and reversed = 0
       order by month desc, amount desc) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;

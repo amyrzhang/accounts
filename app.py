@@ -7,7 +7,7 @@ import pandas as pd
 from datetime import datetime
 import os
 
-from models import db, Transaction, MonthlyExpCategory  # , MonthlyExpCDF
+from models import db, Transaction, MonthlyExpCategory, MonthlyExpCDF
 from config import Config
 from query import Analyzer
 from uploader import load_to_df
@@ -118,22 +118,23 @@ def get_monthly_report():
     })
 
 
-# @app.route('/report/top10', methods=['GET'])
-# def get_top10_transactions():
-#     records = MonthlyExpCDF.query.filter(
-#         MonthlyExpCDF.month == get_last_month()
-#     ).with_entities(
-#         MonthlyExpCDF.goods,
-#         MonthlyExpCDF.amount,
-#         MonthlyExpCDF.cdf
-#     ).all()
-#     return jsonify(
-#         [{
-#             'amount': format_currency(record.amount),
-#             'goods': record.goods,
-#             'cdf': format_percentage(record.cdf)
-#         } for record in records]
-#     )
+@app.route('/report/top10', methods=['GET'])
+def get_top10_transactions():
+    records = MonthlyExpCDF.query.filter(
+        MonthlyExpCDF.month == get_last_month()
+    ).with_entities(
+        MonthlyExpCDF.counterparty,
+        MonthlyExpCDF.goods,
+        MonthlyExpCDF.amount,
+        MonthlyExpCDF.cdf
+    ).limit(10).all()
+    return jsonify(
+        [{
+            'amount': format_currency(rcd.amount),
+            'goods': rcd.counterparty + ', ' + rcd.goods,
+            'cdf': format_percentage(rcd.cdf)
+        } for rcd in records]
+    )
 
 
 @app.route('/report/category', methods=['GET'])
