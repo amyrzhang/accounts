@@ -7,6 +7,15 @@ __copyright__ = "Copyright 2024 Rui Zhang"
 __status__ = "Development"
 __description__ = "A simple web application to analyze bank transactions"
 
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+
+def get_last_month():
+    current_time = datetime.now()
+    last_month = current_time - relativedelta(months=1)
+    return last_month.strftime('%Y-%m')
+
 
 def format_currency(number):
     return f"￥{number:,.2f}"

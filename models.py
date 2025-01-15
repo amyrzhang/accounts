@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # 定义数据库模型
 from flask_sqlalchemy import SQLAlchemy
+from openpyxl.styles.builtins import percent
+from sqlalchemy import PrimaryKeyConstraint
+
 # 创建 SQLAlchemy 对象
 db = SQLAlchemy()
 
@@ -15,10 +18,8 @@ class Transaction(db.Model):
     category = db.Column(db.String(128), nullable=False)  # 类别
     counterparty = db.Column(db.String(128), nullable=False)  # 交易对方
     goods = db.Column(db.String(128), nullable=False)  # 商品
-    reversed = db.Column(db.Boolean, nullable=False, default=False)  # 是否冲账
     amount = db.Column(db.Float, nullable=False)  # 金额
     pay_method = db.Column(db.String(20), nullable=False)  # 支付方式
-    processed_amount = db.Column(db.Float, nullable=True)  # 处理金额
 
     def to_dict(self):
         return {
@@ -31,33 +32,54 @@ class Transaction(db.Model):
             'category': self.category,
             'counterparty': self.counterparty,
             'goods': self.goods,
-            'reversed': self.reversed,
             'amount': self.amount,
             'pay_method': self.pay_method,
-            'processed_amount': self.processed_amount
         }
 
-
-class MonthlyTransaction(db.Model):
-    __tablename__ = 'monthly_expenditure_cdf'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+class MonthlyExpCategory(db.Model):
+    __tablename__ = 'monthly_exp_category'
     month = db.Column(db.String(7), nullable=False)
     category = db.Column(db.String(128), nullable=False)
-    counterparty = db.Column(db.String(128), nullable=False)
-    goods = db.Column(db.String(128), nullable=False)
-    amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
-    percent = db.Column(db.Numeric(precision=19, scale=2), nullable=False)
-    cdf = db.Column(db.Numeric(precision=41, scale=2), nullable=False)
+    amount = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
+    percent = db.Column(db.Numeric(precision=41, scale=6), nullable=False)
 
+    __table_args__ = (
+        PrimaryKeyConstraint('month', 'category'),
+    )
     def to_dict(self):
         return {
-            'id': self.id,
             'month': self.month,
             'category': self.category,
-            'counterparty': self.counterparty,
-            'goods': self.goods,
             'amount': self.amount,
-            'percent': self.percent,
-            'cdf': self.cdf
+            'percent': self.percent
         }
+
+
+# class MonthlyExpCDF(db.Model):
+#     __tablename__ = 'monthly_exp_cdf'
+#     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+#     month = db.Column(db.String(7), nullable=False)
+#     exp_income = db.Column(db.String(10), nullable=False)
+#     category = db.Column(db.String(128), nullable=False)
+#     amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
+#     percent = db.Column(db.Numeric(precision=19, scale=2), nullable=False)
+#     cdf = db.Column(db.Numeric(precision=41, scale=2), nullable=False)
+#     counterparty = db.Column(db.String(128), nullable=False)
+#     goods = db.Column(db.String(128), nullable=False)
+#
+#     __table_args__ = (
+#         PrimaryKeyConstraint('month', 'exp_income', 'category'),
+#     )
+#
+#     def to_dict(self):
+#         return {
+#             'id': self.id,
+#             'month': self.month,
+#             'exp_income': self.exp_income,
+#             'category': self.category,
+#             'amount': self.amount,
+#             'percent': self.percent,
+#             'cdf': self.cdf,
+#             'counterparty': self.counterparty,
+#             'goods': self.goods
+#         }

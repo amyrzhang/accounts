@@ -7,11 +7,11 @@ import pandas as pd
 from datetime import datetime
 import os
 
-from models import db, Transaction, MonthlyTransaction
+from models import db, Transaction, MonthlyExpCategory  # , MonthlyExpCDF
 from config import Config
 from query import Analyzer
 from uploader import load_to_df
-from utils import format_currency, format_percentage
+from utils import get_last_month, format_currency, format_percentage
 
 
 app = Flask(__name__)
@@ -49,10 +49,8 @@ def create_transaction():
         category=data['category'],
         counterparty=data['counterparty'],
         goods=data['goods'],
-        reversed=data['reversed'],
         amount=data['amount'],
         pay_method=data['pay_method'],
-        processed_amount=data['amount']
     )
     db.session.add(transaction)
     db.session.commit()
@@ -73,7 +71,6 @@ def update_transaction(id):
     transaction = Transaction.query.get_or_404(id)
     transaction.expenditure_income = data['expenditure_income']
     transaction.category = data['category']
-    transaction.reversed = data['reversed']
     db.session.commit()
     return jsonify(transaction.to_dict())
 
@@ -121,27 +118,40 @@ def get_monthly_report():
     })
 
 
-@app.route('/api/report/top10', methods=['GET'])
-def get_top10_transactions():
-    transactions = MonthlyTransaction.query.with_entities(
-        MonthlyTransaction.goods,
-        MonthlyTransaction.amount,
-        MonthlyTransaction.cdf
-    ).limit(10).all()
+# @app.route('/report/top10', methods=['GET'])
+# def get_top10_transactions():
+#     records = MonthlyExpCDF.query.filter(
+#         MonthlyExpCDF.month == get_last_month()
+#     ).with_entities(
+#         MonthlyExpCDF.goods,
+#         MonthlyExpCDF.amount,
+#         MonthlyExpCDF.cdf
+#     ).all()
+#     return jsonify(
+#         [{
+#             'amount': format_currency(record.amount),
+#             'goods': record.goods,
+#             'cdf': format_percentage(record.cdf)
+#         } for record in records]
+#     )
+
+
+@app.route('/report/category', methods=['GET'])
+def get_category_report():
+    records = MonthlyExpCategory.query.filter(
+        MonthlyExpCategory.month == get_last_month()
+    ).with_entities(
+        MonthlyExpCategory.category,
+        MonthlyExpCategory.amount,
+        MonthlyExpCategory.percent
+    ).all()
     return jsonify(
         [{
-            'amount': format_currency(transaction.amount),
-            'goods': transaction.goods,
-            'cdf': format_percentage(transaction.cdf)
-        } for transaction in transactions]
+            'amount': format_currency(rcd.amount),
+            'category': rcd.category,
+            'percent': format_percentage(rcd.percent)
+        } for rcd in records]
     )
-
-
-@app.route('/api/report/category', methods=['GET'])
-def get_category_report():
-    a = Analyzer()
-    a.filter_monthly()
-    return jsonify(a.category_sums['支出'].abs().sort_values(ascending=False).to_dict())
 
 
 @app.route('/api/report/account', methods=['GET'])

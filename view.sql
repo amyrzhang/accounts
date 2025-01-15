@@ -10,10 +10,8 @@ CREATE TABLE `transaction`
     `category`           varchar(128)   NOT NULL,
     `counterparty`       varchar(128)            DEFAULT NULL,
     `goods`              varchar(128)   NOT NULL,
-    `reversed`           tinyint(1)     NOT NULL DEFAULT '0',
     `amount`             decimal(10, 2) NOT NULL,
     `pay_method`         varchar(20)    NOT NULL,
-    `processed_amount`   decimal(10, 2)          DEFAULT '0.00',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 388
@@ -212,7 +210,7 @@ select cat.id
 from (select *, date_format(time, '%Y-%m') as month
       from transaction cat
       where expenditure_income = 'Ö§³ö'
-        and reversed = 0
+#         and reversed = 0
       order by month desc, amount desc) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
