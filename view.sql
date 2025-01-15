@@ -187,7 +187,7 @@ create view monthly_exp_category as
 select cat.month,
        cat.category,
        cat.amount,
-       (cat.amount / tot.expenditure) * 100 as precent
+       (cat.amount / tot.expenditure) * 100 as percent
 from (select date_format(time, '%Y-%m') as month
            , category
            , sum(amount)                as amount
