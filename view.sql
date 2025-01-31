@@ -11,7 +11,7 @@ CREATE TABLE `transaction`
     `counterparty`       varchar(128)            DEFAULT NULL,
     `goods`              varchar(128)   NOT NULL,
     `amount`             decimal(10, 2) NOT NULL,
-    `pay_method`         varchar(20)    NOT NULL,
+    payment_method         varchar(20)    NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 388
@@ -37,13 +37,13 @@ CREATE TABLE `account_info`
 
 
 # 卡余额，用账户表关联
-create view card_balance as
+create view account_activity as
 with transfer_tb as (select t.id,
                             t.time,
-                            t.expenditure_income,
+                            t.debit_credit,
                             t.goods,
                             t.amount,
-                            t.pay_method,
+                            t.payment_method,
                             t.counterparty,
                             t.category,
                             t.status,
@@ -53,10 +53,10 @@ with transfer_tb as (select t.id,
                               join account_info a on t.counterparty = a.account_name),
      transaction_tb as (select t.id,
                                time,
-                               expenditure_income,
+                               debit_credit,
                                goods,
                                amount,
-                               pay_method,
+                               payment_method,
                                counterparty,
                                category,
                                status,
@@ -68,10 +68,10 @@ with transfer_tb as (select t.id,
                         union all
                         select `id`
                              , time
-                             , '支出' as expenditure_income
+                             , '支出' as debit_credit
                              , goods
                              , amount
-                             , pay_method
+                             , payment_method
                              , counterparty
                              , category
                              , status
@@ -81,11 +81,11 @@ with transfer_tb as (select t.id,
                         union all
                         select id
                              , time
-                             , '收入'       as expenditure_income
+                             , '收入'       as debit_credit
                              , goods
                              , amount
                              , counterparty as pay_method
-                             , pay_method   as counterparty
+                             , payment_method   as counterparty
                              , category
                              , status
                              , type
@@ -93,15 +93,15 @@ with transfer_tb as (select t.id,
                         from transfer_tb)
 select id,
        time,
-       expenditure_income as exp_income,
+       debit_credit,
        counterparty,
        goods,
        amount,
        sum(case
-               when expenditure_income = '收入' then amount
-               when expenditure_income = '支出' then -amount
-               else 0 end) over (partition by pay_method order by time) as balance,
-       pay_method,
+               when debit_credit = '收入' then amount
+               when debit_credit = '支出' then -amount
+               else 0 end) over (partition by payment_method order by time) as balance,
+       payment_method as account_name,
        category,
        status,
        type,
@@ -125,18 +125,18 @@ with base_tb as (
          , t.update_time
          , a.is_included
     from account_info a
-             left join (select pay_method
+             left join (select account_name
                              , min(time)                                       as create_time
                              , max(time)                                       as update_time
                              , sum(case
-                                       when exp_income = '收入' then amount
-                                       when exp_income = '支出' then -amount
+                                       when debit_credit = '收入' then amount
+                                       when debit_credit = '支出' then -amount
                                        else 0 end)                             as balance
-                             , sum(if(exp_income = '收入', amount, 0)) as income
-                             , sum(if(exp_income = '支出', amount, 0)) as expenditure
-                        from card_balance
-                        group by pay_method) t
-                       on a.account_name = t.pay_method
+                             , sum(if(debit_credit = '收入', amount, 0)) as income
+                             , sum(if(debit_credit = '支出', amount, 0)) as expenditure
+                        from account_activity
+                        group by account_name) t
+                       on a.account_name = t.account_name
     where is_active = 1
     order by account_type desc, balance desc
 )
@@ -156,7 +156,6 @@ from base_tb;
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
-drop view if exists monthly_balance;
 create view monthly_balance as
 select month
        , balance
@@ -166,14 +165,14 @@ select month
        , debit
 from (select date_format(time, '%Y-%m')                      as month
            , sum(case
-                     when expenditure_income = '收入' then amount
-                     when expenditure_income = '支出' then -amount
+                     when debit_credit = '收入' then amount
+                     when debit_credit = '支出' then -amount
                      else 0 end)                             as balance
            , sum(case
-                     when expenditure_income = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职' then amount
+                     when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职' then amount
                      else 0 end)                             as income
-           , sum(if(expenditure_income = '收入', amount, 0)) as credit
-           , sum(if(expenditure_income = '支出', amount, 0)) as debit
+           , sum(if(debit_credit = '收入', amount, 0)) as credit
+           , sum(if(debit_credit = '支出', amount, 0)) as debit
       from transaction
       group by month) tb
 order by month;
@@ -190,14 +189,13 @@ from (select date_format(time, '%Y-%m') as month
            , category
            , sum(amount)                as amount
       from money_track.transaction cat
-      where expenditure_income = '支出'
+      where debit_credit = '支出'
       group by month, category) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
 
 
 # 月度支出交易累积占比 -- 带冲账标记
-drop view if exists monthly_exp_cdf;
 create view monthly_exp_cdf as
 select cat.id
      , cat.month
@@ -209,7 +207,7 @@ select cat.id
      , cat.goods
 from (select *, date_format(time, '%Y-%m') as month
       from transaction cat
-      where expenditure_income = '支出'
+      where debit_credit = '支出'
       order by month desc, amount desc) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;

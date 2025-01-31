@@ -230,7 +230,8 @@ class AlipayProcessor(Processor):
         return self.process_data()
 
 
-def strip_in_data(data):  # 把列名中和数据中首尾的空格都去掉。
+def strip_in_data(data):
+    """"把列名中和数据中首尾的空格都去掉"""
     data = data.rename(columns={column_name: column_name.strip() for column_name in data.columns})
     data = data.map(lambda x: x.strip().strip('¥') if isinstance(x, str) else x)
     return data
