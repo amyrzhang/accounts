@@ -9,7 +9,6 @@ import os
 
 from models import db, Transaction, MonthlyExpCategory, MonthlyExpCDF
 from config import Config
-from query import Analyzer
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage
 
