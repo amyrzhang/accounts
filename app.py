@@ -40,18 +40,19 @@ def get_transactions():
 
 @app.route('/transactions', methods=['POST'])
 def create_transaction():
+    """增加一条记录"""
     data = request.get_json()
     transaction = Transaction(
-        time=datetime.strptime(data['time'], '%Y-%m-%d %H:%M:%S'),
-        source=data['source'],
-        expenditure_income=data['expenditure_income'],
-        status=data['status'],
-        type=data['type'],
-        category=data['category'],
-        counterparty=data['counterparty'],
-        goods=data['goods'],
-        amount=data['amount'],
-        pay_method=data['pay_method'],
+        time=datetime.strptime(data.get('time'), '%Y-%m-%d %H:%M:%S'),
+        type=data.get('type'),
+        counterparty=data.get('counterparty'),
+        goods=data.get('goods'),
+        debit_credit=data.get('debit_credit'),
+        amount=data.get('amount'),
+        payment_method=data.get('payment_method'),
+        status=data.get('status'),
+        category=data.get('category'),
+        source=data.get('source'),
     )
     db.session.add(transaction)
     db.session.commit()
@@ -60,6 +61,7 @@ def create_transaction():
 
 @app.route('/transactions/<int:id>', methods=['DELETE'])
 def delete_transaction(id):
+    """根据 ID 删除一条记录"""
     transaction = Transaction.query.get_or_404(id)
     db.session.delete(transaction)
     db.session.commit()
@@ -68,10 +70,11 @@ def delete_transaction(id):
 
 @app.route('/transactions/<int:id>', methods=['PUT'])
 def update_transaction(id):
+    """修改一条记录"""
     data = request.get_json()
     transaction = Transaction.query.get_or_404(id)
-    transaction.expenditure_income = data['expenditure_income']
-    transaction.category = data['category']
+    transaction.debit_credit = data.get('debit_credit')
+    transaction.category = data.get('category')
     db.session.commit()
     return jsonify(transaction.to_dict())
 

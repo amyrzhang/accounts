@@ -11,17 +11,17 @@ db = SQLAlchemy()
 
 
 class Transaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     time = db.Column(db.DateTime, nullable=False)  # 交易时间
-    type = db.Column(db.String(10), nullable=False)  # 类型
-    counterparty = db.Column(db.String(128), nullable=False)  # 交易对方
+    type = db.Column(db.String(10), nullable=True)  # 类型
+    counterparty = db.Column(db.String(128), nullable=True)  # 交易对方
     goods = db.Column(db.String(128), nullable=False)  # 商品
     debit_credit = db.Column(db.String(10), nullable=False)  # 收/支
     amount = db.Column(db.Float, nullable=False)  # 金额
     payment_method = db.Column(db.String(20), nullable=False)  # 支付方式
-    status = db.Column(db.String(128), nullable=False)  # 支付状态
-    category = db.Column(db.String(128), nullable=False)  # 类别
-    source = db.Column(db.String(128), nullable=False)  # 来源
+    status = db.Column(db.String(128), nullable=True)  # 支付状态
+    category = db.Column(db.String(128), nullable=True)  # 类别
+    source = db.Column(db.String(128), nullable=True)  # 来源
 
     def to_dict(self):
         return {
