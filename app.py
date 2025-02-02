@@ -85,9 +85,12 @@ def get_transaction(id):
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    # 检查是否有文件在请求中
     if 'file' not in request.files:
         return "No file part", 400
     file = request.files['file']
+
+    # 检查是否选择了文件
     if file.filename == '':
         return "No selected file", 400
     if file:

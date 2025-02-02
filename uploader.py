@@ -8,34 +8,35 @@ import json
 import chardet
 
 
+
 def load_to_df(filepath):
     if '微信支付账单' in filepath:
-        data = WeixinProcessor(filepath).df  # 写入数据
+        wp = WeixinProcessor(filepath)
+        data = wp.read_data()#.df  # 写入数据
     elif 'alipay_record' in filepath:
         data = AlipayProcessor(filepath).df  # 写入数据
+        data.rename(columns={
+            '交易时间': 'time',
+            '来源': 'source',
+            '收/支': 'expenditure_income',
+            '支付状态': 'status',
+            '类型': 'type',
+            'category': 'category',
+            '交易对方': 'counterparty',
+            '商品': 'goods',
+            '是否冲账': 'reversed',
+            '金额': 'amount',
+            '支付方式': 'pay_method'
+        }, inplace=True)
     else:
         return f'Unsupported file type', 400
-    data.rename(columns={'amount': 'processed_amount'}, inplace=True)
-    data.rename(columns={
-        '交易时间': 'time',
-        '来源': 'source',
-        '收/支': 'expenditure_income',
-        '支付状态': 'status',
-        '类型': 'type',
-        'category': 'category',
-        '交易对方': 'counterparty',
-        '商品': 'goods',
-        '是否冲账': 'reversed',
-        '金额': 'amount',
-        '支付方式': 'pay_method'
-    }, inplace=True)
+
     return data
 
 
 class Processor:
     def __init__(self, path):
         self.path = path
-        self.check_balance()
 
     @property
     def balance(self):
@@ -56,29 +57,6 @@ class Processor:
             if expense_match:
                 expenditures = float(expense_match.group(1))
         return round(incomes - expenditures, 2)
-
-    @property
-    def df(self):
-        """读取数据，并添加字段"""
-        df = pd.read_csv(self.path, encoding=self.encoding)
-        return df.sort_values(by='交易时间', ascending=False)
-
-    @property
-    def sums(self):
-        sums = self.df.groupby(['收/支'])['amount'].sum()
-        if '收入' not in sums:
-            sums['收入'] = 0
-        return np.round(sums, 2)
-
-    @property
-    def category_sums(self):
-        return self.df.groupby(['收/支', 'category'])['amount'].sum().sort_values()
-
-    @property
-    def account_sums(self):
-        grouped_df = self.df.groupby(['支付方式', '收/支'])['amount'].sum().reset_index()
-        pivot_df = grouped_df.pivot(index='支付方式', columns='收/支', values='amount').fillna(0)
-        return pivot_df.round(2)
 
     @property
     def encoding(self):
@@ -104,7 +82,7 @@ class Processor:
         # 增加字段：是否冲账
         df.insert(df.columns.tolist().index('金额'), '是否冲账', 0)
         df = df.apply(process_excluded_row, axis='columns')  # 修改收支列和增加amount列
-        df['category'] = df.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
+        df['category'] = df.apply(process_category_row, axis='columns')  # 修改类别列
         return df
 
     def check_balance(self):
@@ -141,42 +119,59 @@ class Processor:
 
 class WeixinProcessor(Processor):
     @property
-    def balance(self):
-        return super().balance
+    def file_encoding(self):
+        return "utf-8"
 
     @property
-    def df(self):
-        """将已存入零钱的交易，交易账户改为“零钱”"""
-        return self.process_data()
+    def balance(self):
+        return super().balance
+    #
+    # @property
+    # def df(self):
+    #     """将已存入零钱的交易，交易账户改为“零钱”"""
+    #     return self.read_data()
 
     def read_data(self):
-        df = pd.read_csv(self.path, header=16, skipfooter=0, encoding=self.encoding)  # 数据获取，微信
-        df.rename(columns={
-            '当前状态': '支付状态',
-            '交易类型': '类型',
-            '金额(元)': '金额'},
-            inplace=True)  # 修改列名称
-        df = strip_in_data(df)  # 去除列名与数值中的空格。
-        df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
-        df['金额'] = df['金额'].astype('float64')  # 数据类型更改
+        df = pd.read_csv(
+            self.path, header=16, usecols=[0, 1, 2, 3, 4, 5, 6, 7],
+            skipfooter=0,
+            encoding=self.file_encoding
+        )  # 数据获取，微信
 
-        # 增加列
-        df.insert(1, '来源', self.data_source, allow_duplicates=True)  # 添加微信来源标识
-        df.insert(df.columns.tolist().index('交易对方'), 'category', '餐饮')  # 增加类别列
-        selected_columns = ['交易时间', '来源', '收/支', '支付状态', '类型', 'category', '交易对方', '商品', '金额', '支付方式']
-        return df[selected_columns]
+        df = self.strip_in_data(df)  # 去除列名与数值中的空格。
+        df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
+        df['金额(元)'] = df['金额(元)'].astype('float64')  # 数据类型更改
+
+        df = df.apply(self.clean_weixin_payment_method, axis='columns')
+        df['category'] = df.apply(process_category_row, axis='columns')
+        df['source'] = self.data_source
+
+        df.rename(columns={
+            '交易时间': 'time',
+            '来源': 'source',
+            '收/支': 'debit_credit',
+            '当前状态': 'status',
+            '交易类型': 'type',
+            '交易对方': 'counterparty',
+            '商品': 'goods',
+            '金额(元)': 'amount',
+            '支付方式': 'payment_method'
+        }, inplace=True)
+        return df
 
     @staticmethod
-    def clean_data(df):
-        df['category'] = df.apply(process_category_row, axis='columns')  # 修改不计收支值，修改金额
-        df = df.apply(clean_weixin_payment_method, axis='columns')  # 处理【支付方式】和【金额】
-        return df
+    def strip_in_data(data):
+        """"去掉金额的货币符号"""
+        data = data.rename(columns={column_name: column_name.strip() for column_name in data.columns})
+        return data.map(lambda x: x.strip().strip('¥') if isinstance(x, str) else x)
 
-    def process_data(self):
-        df = self.read_data()
-        df = self.add_columns(df)
-        df = self.clean_data(df)
-        return df
+    @staticmethod
+    def clean_weixin_payment_method(row):
+        """微信收入的交易账户为 零钱 """
+        if row['收/支'] == '收入' and row['支付方式'] == '/' and row['当前状态'] == "已存入零钱":
+            row['支付方式'] = '零钱'
+        return row
+
 
 
 class AlipayProcessor(Processor):
@@ -228,20 +223,6 @@ class AlipayProcessor(Processor):
     @property
     def df(self):
         return self.process_data()
-
-
-def strip_in_data(data):
-    """"把列名中和数据中首尾的空格都去掉"""
-    data = data.rename(columns={column_name: column_name.strip() for column_name in data.columns})
-    data = data.map(lambda x: x.strip().strip('¥') if isinstance(x, str) else x)
-    return data
-
-
-def clean_weixin_payment_method(row):
-    """微信收入的交易账户为 零钱 """
-    if row['收/支'] == '收入' and row['支付方式'] == '/':
-        row['支付方式'] = '零钱'
-    return row
 
 
 def clean_alipay_payment_method(row):
@@ -321,3 +302,7 @@ def settle_transactions(data):
     # 将选定的行的 'amount' 列设为 remaining_amount
     data.at[index, 'amount'] = remaining_amount
     return data
+
+if __name__ == '__main__':
+    filepath="微信支付账单(20250101-20250131)——【解压密码可在微信支付公众号查看】.csv"
+    res = load_to_df(filepath)
