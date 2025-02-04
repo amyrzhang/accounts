@@ -227,11 +227,16 @@ CREATE TABLE stock_price (
 create view v_position as
 SELECT stock_code,
        SUM(IF(type = 'BUY', quantity, 0))           AS quantity,
+       SUM(CASE
+               WHEN type = 'BUY' THEN quantity * price + fee
+               when type = 'DIVIDEND' then -quantity * price
+               ELSE 0 END) /
+       SUM(IF(type = 'BUY', quantity, 0))          AS avg_cost,
        ROUND(SUM(CASE
                      WHEN type = 'BUY' THEN quantity * price + fee
                      when type = 'DIVIDEND' then -quantity * price
                      ELSE 0 END) /
-             SUM(IF(type = 'BUY', quantity, 0)), 3) AS avg_cost,
+             SUM(IF(type = 'BUY', quantity, 0)), 3) AS avg_cost_short,
        MAX(timestamp)                               AS last_updated
 FROM transaction
 GROUP BY stock_code;
@@ -248,7 +253,23 @@ FROM asset_snapshot a
          JOIN stock_price sp ON p.stock_code = sp.stock_code
 WHERE sp.date = (SELECT MAX(date) FROM stock_price);  -- 获取最新价格
 
-
+# 持仓盈亏
+select
+    p.stock_code
+    , sp.date
+    , p.quantity
+    , p.quantity * sp.close as position_value
+    , sp.close
+    , p.avg_cost
+    , round(p.quantity * sp.close - p.avg_cost * p.quantity, 2) as unrealized_pnl
+    , p.avg_cost * p.quantity as realized_pnl
+from v_position p
+left join (
+    select date, stock_code, close,
+        row_number() over (partition by stock_code order by date desc) as rn
+    from stock_price
+) sp on p.stock_code = sp.stock_code
+where sp.rn = 1;
 
 -- 示例：统计 2023 年 10 月盈亏
 CREATE VIEW v_monthly_pnl AS
