@@ -36,75 +36,7 @@ CREATE TABLE `account_info`
   COLLATE = utf8mb4_0900_ai_ci;
 
 
-select t.cashflow_id,
-       t.time,
-       t.debit_credit,
-       t.goods,
-       t.amount,
-       t.payment_method,
-       t.counterparty,
-       t.category,
-       t.status,
-       t.type,
-       t.source
-from cashflow t
-         join account_info a on t.counterparty = a.account_name;
-
 # 卡余额，用账户表关联
-create view account_activity as
-with transfer_tb as (select t.cashflow_id,
-                            t.time,
-                            t.debit_credit,
-                            t.goods,
-                            t.amount,
-                            t.payment_method,
-                            t.counterparty,
-                            t.category,
-                            t.status,
-                            t.type,
-                            t.source
-                     from cashflow t
-                              join account_info a on t.counterparty = a.account_name),
-     transaction_tb as (select t.cashflow_id,
-                               time,
-                               debit_credit,
-                               goods,
-                               amount,
-                               payment_method,
-                               counterparty,
-                               category,
-                               status,
-                               type,
-                               source
-                        from cashflow t
-                                 left join account_info a on t.counterparty = a.account_name
-                        where a.account_name is null
-                        union all
-                        select cashflow_id
-                             , time
-                             , '支出' as debit_credit
-                             , goods
-                             , amount
-                             , payment_method
-                             , counterparty
-                             , category
-                             , status
-                             , type
-                             , source
-                        from transfer_tb
-                        union all
-                        select cashflow_id
-                             , time
-                             , '收入'       as debit_credit
-                             , goods
-                             , amount
-                             , counterparty as pay_method
-                             , payment_method   as counterparty
-                             , category
-                             , status
-                             , type
-                             , source
-                        from transfer_tb)
 select cashflow_id,
        time,
        debit_credit,
@@ -120,7 +52,7 @@ select cashflow_id,
        status,
        type,
        source
-from transaction_tb
+from cashflow
 order by time desc;
 
 
@@ -139,7 +71,7 @@ with base_tb as (
          , t.update_time
          , a.is_included
     from account_info a
-             left join (select account_name
+             left join (select payment_method
                              , min(time)                                       as create_time
                              , max(time)                                       as update_time
                              , sum(case
@@ -148,9 +80,9 @@ with base_tb as (
                                        else 0 end)                             as balance
                              , sum(if(debit_credit = '收入', amount, 0)) as income
                              , sum(if(debit_credit = '支出', amount, 0)) as expenditure
-                        from account_activity
-                        group by account_name) t
-                       on a.account_name = t.account_name
+                        from cashflow
+                        group by payment_method) t
+                       on a.account_name = t.payment_method
     where is_active = 1
     order by account_type desc, balance desc
 )
@@ -199,17 +131,26 @@ select cat.month,
        cat.category,
        cat.amount,
        (cat.amount / tot.expenditure) * 100 as percent
-from (select date_format(time, '%Y-%m') as month
-           , category
-           , sum(amount)                as amount
-      from money_track.cashflow cat
-      where debit_credit = '支出'
-      group by month, category) cat
+from (
+         select date_format(time, '%Y-%m') as month
+              , category
+              , sum(amount)                as amount
+         from money_track.cashflow cat
+         where debit_credit = '支出'
+           and cashflow_id in (
+             select cashflow_id
+             from money_track.cashflow
+             group by cashflow_id
+             having count(*) = 1
+         )
+         group by month, category
+) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
 
 
 # 月度支出交易累积占比
+create view monthly_exp_cdf as
 select cat.cashflow_id as id
      , cat.month
      , cat.category
@@ -218,10 +159,18 @@ select cat.cashflow_id as id
      , sum((cat.amount / tot.expenditure) * 100) over (partition by cat.month order by cat.amount desc) as cdf
      , cat.counterparty
      , cat.goods
-from (select *, date_format(time, '%Y-%m') as month
-      from cashflow cat
-      where debit_credit = '支出'
-      order by month desc, amount desc) cat
+from (
+         select *, date_format(time, '%Y-%m') as month
+         from cashflow cat
+         where debit_credit = '支出'
+           and cashflow_id in (
+             select cashflow_id
+             from cashflow
+             group by cashflow_id
+             having count(*) = 1
+         )
+         order by month desc, amount desc
+) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
 
@@ -249,38 +198,6 @@ CREATE TABLE transaction (
 );
 
 
-CREATE TABLE position (
-                          position_id  INT AUTO_INCREMENT PRIMARY KEY,
-                          stock_code   VARCHAR(10)   NOT NULL UNIQUE,  -- 股票代码唯一（单只股票一条记录）
-                          quantity     INT           NOT NULL,         -- 当前持仓数量
-                          avg_cost     DECIMAL(18,3) NOT NULL,         -- 动态计算的平均成本价
-                          last_updated DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP        -- 最后更新时间
-);
-
-# 持仓成本价
-# INSERT INTO `position` (stock_code, quantity, avg_cost, last_updated)
-SELECT stock_code,
-       SUM(CASE WHEN type = 'BUY' THEN quantity
-                when type = 'SELL'then -quantity else 0 END)   AS quantity,
-       ROUND(SUM(CASE WHEN type = 'BUY' THEN quantity * price + fee ELSE 0 END) /
-             SUM(CASE WHEN type = 'BUY' THEN quantity
-                      when type = 'SELL'then -quantity else 0 END), 3) AS avg_cost,
-       MAX(timestamp)                                                 AS last_updated
-FROM (SELECT stock_code,
-             type,
-             quantity,
-             price,
-             fee,
-             timestamp,
-             SUM(CASE WHEN `type` = 'BUY' THEN quantity * price + fee ELSE 0 END)
-                 OVER (PARTITION BY stock_code ORDER BY timestamp)    AS cumulative_cost,
-             SUM(CASE WHEN `type` = 'BUY' THEN quantity ELSE 0 END)
-                 OVER (PARTITION BY stock_code ORDER BY timestamp)    AS cumulative_quantity
-      FROM `transaction`) AS subquery
-GROUP BY stock_code
-HAVING quantity >= 0;
-;
-
 CREATE TABLE stock_price (
                              stock_code        VARCHAR(10)   NOT NULL,   -- 股票代码（如002991.SZ）
                              date              DATE          NOT NULL,   -- 交易日
@@ -298,12 +215,27 @@ CREATE TABLE stock_price (
 );
 
 
-CREATE TABLE cashflow (
-                          cashflow_id  INT AUTO_INCREMENT PRIMARY KEY,
-                          type         ENUM('DEPOSIT','WITHDRAW') NOT NULL,  -- 操作类型
-                          amount       DECIMAL(18,3) NOT NULL,         -- 金额
-                          timestamp    DATETIME      NOT NULL          -- 操作时间
-);
+# CREATE TABLE position (
+#                           position_id  INT AUTO_INCREMENT PRIMARY KEY,
+#                           stock_code   VARCHAR(10)   NOT NULL UNIQUE,  -- 股票代码唯一（单只股票一条记录）
+#                           quantity     INT           NOT NULL,         -- 当前持仓数量
+#                           avg_cost     DECIMAL(18,3) NOT NULL,         -- 动态计算的平均成本价
+#                           last_updated DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP        -- 最后更新时间
+# );
+
+# 持仓成本价
+create view v_position as
+SELECT stock_code,
+       SUM(IF(type = 'BUY', quantity, 0))           AS quantity,
+       ROUND(SUM(CASE
+                     WHEN type = 'BUY' THEN quantity * price + fee
+                     when type = 'DIVIDEND' then -quantity * price
+                     ELSE 0 END) /
+             SUM(IF(type = 'BUY', quantity, 0)), 3) AS avg_cost,
+       MAX(timestamp)                               AS last_updated
+FROM transaction
+GROUP BY stock_code;
+
 
 
 CREATE VIEW v_current_asset AS

@@ -9,6 +9,7 @@ __description__ = "A simple web application to analyze bank transactions"
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import random
 
 
 def get_last_month():
@@ -23,3 +24,10 @@ def format_currency(number):
 
 def format_percentage(number):
     return f"{number:.2f}%"
+
+
+def generate_cashflow_id():
+    """生成唯一 cashflow_id"""
+    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
+    random_number = str(random.getrandbits(4))
+    return current_time + random_number

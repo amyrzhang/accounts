@@ -2,7 +2,7 @@
 # 定义数据库模型
 from flask_sqlalchemy import SQLAlchemy
 from openpyxl.styles.builtins import percent
-from sqlalchemy import PrimaryKeyConstraint
+from sqlalchemy import PrimaryKeyConstraint, ForeignKey
 import akshare as ak
 
 from utils import format_currency
@@ -13,6 +13,7 @@ db = SQLAlchemy()
 
 class Cashflow(db.Model):
     cashflow_id = db.Column(db.String(36))
+    transaction_id = db.Column(db.Integer, ForeignKey('transaction.transaction_id'), nullable=True)
     time = db.Column(db.DateTime, nullable=False)  # 交易时间
     type = db.Column(db.String(10), nullable=True)  # 类型
     counterparty = db.Column(db.String(128), nullable=True)  # 交易对方
@@ -132,34 +133,6 @@ class AccountBalance(db.Model):
         }
 
 
-class AccountActivity(db.Model):
-    __tablename__ = 'account_activity'
-    id = db.Column(db.Integer, primary_key=True)
-    time = db.Column(db.DateTime, nullable=False)
-    debit_credit = db.Column(db.String(10), nullable=False)
-    counterparty = db.Column(db.String(128), nullable=False)
-    goods = db.Column(db.String(128), nullable=False)
-    amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
-    balance = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
-    account_name = db.Column(db.String(128), nullable=False)
-    category = db.Column(db.String(128), nullable=False)
-    status = db.Column(db.String(128), nullable=False)
-    type = db.Column(db.String(10), nullable=False)
-    source = db.Column(db.String(128), nullable=False)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'time': self.time.strftime('%Y-%m-%d %H:%M:%S'),
-            'debit_credit': self.debit_credit,
-            'counterparty': self.counterparty,
-            'goods': self.goods,
-            'amount': format_currency(self.amount),
-            'balance': format_currency(self.balance),
-            'account_name': self.account_name
-        }
-
-
 class StockPrice(db.Model):
     __tablename__ = 'stock_price'
 
@@ -180,25 +153,25 @@ class StockPrice(db.Model):
         db.Index('idx_stock_code', 'stock_code')  # 按股票代码查询优化
     )
 
+class Transaction(db.Model):
+    __tablename__ = 'transaction'
+
+    transaction_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    stock_code = db.Column(db.String(10), nullable=False)  # 股票代码（如 002991.SZ）
+    type = db.Column(db.String(10), nullable=False)  # 交易类型
+    timestamp = db.Column(db.DateTime, nullable=False)  # 交易时间
+    quantity = db.Column(db.Integer, nullable=False)  # 交易数量（股）
+    price = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 成交单价
+    fee = db.Column(db.Numeric(precision=18, scale=2), nullable=False, default=0)  # 手续费
+
     def to_dict(self):
         return {
+            'transaction_id': self.transaction_id,
             'stock_code': self.stock_code,
-            'date': self.date.strftime('%Y-%m-%d'),
-            'open': float(self.open),
-            'high': float(self.high),
-            'low': float(self.low),
-            'close': float(self.close),
-            'volume': int(self.volume),
-            'amount': float(self.amount),
-            'outstanding_share': int(self.outstanding_share),
-            'turnover': float(self.turnover)
+            'type': self.type,
+            'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            'quantity': self.quantity,
+            'price': self.price,
+            'fee': self.fee
         }
 
-if __name__ == '__main__':
-    stock_ganyuan = ak.stock_zh_a_daily(symbol="sz002991", adjust="")
-    stock_ganyuan["stock_code"] = "sz002991"
-    stock_anjing = ak.stock_zh_a_daily(symbol="sh603345", adjust="")
-    stock_anjing["stock_code"] = "sh603345"
-
-    stock_ganyuan.to_sql('stock_price', con=db.engine, if_exists='append', index=False)
-    stock_anjing.to_sql('stock_price', con=db.engine, if_exists='append', index=False)
