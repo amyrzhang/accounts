@@ -3,12 +3,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from sqlalchemy import desc, func, extract
-import pandas as pd
 from datetime import datetime
 import os
 
-from models import db, Transaction, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF
-import models
+from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF
+import model
 from config import Config
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage
@@ -18,7 +17,6 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-# engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
 CORS(app)  # 允许所有来源
 db.init_app(app)
 
@@ -26,15 +24,15 @@ db.init_app(app)
 @app.route('/transactions', methods=['GET'])
 def get_transactions():
     """查询所有记录"""
-    query = Transaction.query
+    query = Cashflow.query
     if request.args:
         for param, value in request.args.items():
-            if hasattr(Transaction, param):
+            if hasattr(Cashflow, param):
                 if param == 'time':
-                    query = query.filter(func.date_format(Transaction.time, '%Y-%m') == value)
+                    query = query.filter(func.date_format(Cashflow.time, '%Y-%m') == value)
                 else:
-                    query = query.filter(getattr(Transaction, param) == value)
-    transactions = query.order_by(desc(Transaction.time)).all()
+                    query = query.filter(getattr(Cashflow, param) == value)
+    transactions = query.order_by(desc(Cashflow.time)).all()
     return jsonify([transaction.to_dict() for transaction in transactions])
 
 
@@ -42,7 +40,7 @@ def get_transactions():
 def create_transaction():
     """增加一条记录"""
     data = request.get_json()
-    transaction = Transaction(
+    transaction = Cashflow(
         time=datetime.strptime(data.get('time'), '%Y-%m-%d %H:%M:%S'),
         type=data.get('type'),
         counterparty=data.get('counterparty'),
@@ -59,31 +57,33 @@ def create_transaction():
     return jsonify(transaction.to_dict()), 200
 
 
-@app.route('/transactions/<int:id>', methods=['DELETE'])
-def delete_transaction(id):
+@app.route('/transactions/<int:cashflow_id>', methods=['DELETE'])
+def delete_transaction(cashflow_id):
     """根据 ID 删除一条记录"""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Cashflow.query.get_or_404(cashflow_id)
     db.session.delete(transaction)
     db.session.commit()
     return '', 204
 
 
-@app.route('/transactions/<int:id>', methods=['PUT'])
-def update_transaction(id):
+@app.route('/transactions/<int:cashflow_id>', methods=['PUT'])
+def update_transaction(cashflow_id):
     """修改一条记录"""
     data = request.get_json()
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Cashflow.query.get_or_404(cashflow_id)
     transaction.debit_credit = data.get('debit_credit')
     transaction.category = data.get('category')
     db.session.commit()
     return jsonify(transaction.to_dict())
 
 
-@app.route('/transactions/<int:id>', methods=['GET'])
-def get_transaction(id):
+@app.route('/transactions/<int:cashflow_id>', methods=['GET'])
+def get_transaction(cashflow_id):
     """根据 ID 查询一条记录"""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Cashflow.query.get_or_404(cashflow_id)
     return jsonify(transaction.to_dict())
+
+
 
 
 @app.route('/upload', methods=['POST'])
@@ -163,13 +163,13 @@ def get_category_report():
 @app.route('/account/activity', methods=['GET'])
 def get_account_activity():
     request_account = request.args.get('account_name')
-    query = models.AccountActivity.query
-    result = query.filter(models.AccountActivity.account_name == request_account).all()
+    query = model.AccountActivity.query
+    result = query.filter(model.AccountActivity.account_name == request_account).all()
     return jsonify([r.to_dict() for r in result])
 
 @app.route('/account/balance', methods=['GET'])
 def get_account_balance():
-    result = models.AccountBalance.query.all()
+    result = model.AccountBalance.query.all()
     return jsonify([r.to_dict() for r in result])
 
 

@@ -36,9 +36,23 @@ CREATE TABLE `account_info`
   COLLATE = utf8mb4_0900_ai_ci;
 
 
+select t.cashflow_id,
+       t.time,
+       t.debit_credit,
+       t.goods,
+       t.amount,
+       t.payment_method,
+       t.counterparty,
+       t.category,
+       t.status,
+       t.type,
+       t.source
+from cashflow t
+         join account_info a on t.counterparty = a.account_name;
+
 # 卡余额，用账户表关联
 create view account_activity as
-with transfer_tb as (select t.id,
+with transfer_tb as (select t.cashflow_id,
                             t.time,
                             t.debit_credit,
                             t.goods,
@@ -49,9 +63,9 @@ with transfer_tb as (select t.id,
                             t.status,
                             t.type,
                             t.source
-                     from transaction t
+                     from cashflow t
                               join account_info a on t.counterparty = a.account_name),
-     transaction_tb as (select t.id,
+     transaction_tb as (select t.cashflow_id,
                                time,
                                debit_credit,
                                goods,
@@ -62,11 +76,11 @@ with transfer_tb as (select t.id,
                                status,
                                type,
                                source
-                        from transaction t
+                        from cashflow t
                                  left join account_info a on t.counterparty = a.account_name
                         where a.account_name is null
                         union all
-                        select `id`
+                        select cashflow_id
                              , time
                              , '支出' as debit_credit
                              , goods
@@ -79,7 +93,7 @@ with transfer_tb as (select t.id,
                              , source
                         from transfer_tb
                         union all
-                        select id
+                        select cashflow_id
                              , time
                              , '收入'       as debit_credit
                              , goods
@@ -91,7 +105,7 @@ with transfer_tb as (select t.id,
                              , type
                              , source
                         from transfer_tb)
-select id,
+select cashflow_id,
        time,
        debit_credit,
        counterparty,
@@ -173,7 +187,7 @@ from (select date_format(time, '%Y-%m')                      as month
                      else 0 end)                             as income
            , sum(if(debit_credit = '收入', amount, 0)) as credit
            , sum(if(debit_credit = '支出', amount, 0)) as debit
-      from transaction
+      from cashflow
       group by month) tb
 order by month;
 
@@ -188,16 +202,15 @@ select cat.month,
 from (select date_format(time, '%Y-%m') as month
            , category
            , sum(amount)                as amount
-      from money_track.transaction cat
+      from money_track.cashflow cat
       where debit_credit = '支出'
       group by month, category) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
 
 
-# 月度支出交易累积占比 -- 带冲账标记
-create view monthly_exp_cdf as
-select cat.id
+# 月度支出交易累积占比
+select cat.cashflow_id as id
      , cat.month
      , cat.category
      , cat.amount
@@ -206,9 +219,124 @@ select cat.id
      , cat.counterparty
      , cat.goods
 from (select *, date_format(time, '%Y-%m') as month
-      from transaction cat
+      from cashflow cat
       where debit_credit = '支出'
       order by month desc, amount desc) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
+
+
+
+CREATE TABLE asset_snapshot (
+                                snapshot_id   INT AUTO_INCREMENT PRIMARY KEY,
+                                date          DATE         NOT NULL UNIQUE,  -- 假设每日仅一条快照
+                                cash          DECIMAL(18,3) NOT NULL,        -- 可用资金（可交易现金）
+                                position_value DECIMAL(18,3) NOT NULL,       -- 持仓总市值
+                                total_asset   DECIMAL(18,3) NOT NULL,        -- 总资产 = cash + position_value
+                                INDEX (date)
+);
+
+
+CREATE TABLE transaction (
+                             transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+                             stock_code    VARCHAR(10)   NOT NULL,        -- 股票代码（如 002991.SZ）
+                             type          ENUM('BUY','SELL', 'DIVIDEND') NOT NULL,   -- 交易类型
+                             timestamp     DATETIME      NOT NULL,        -- 交易时间
+                             quantity      INT           NOT NULL,        -- 交易数量（股）
+                             price         DECIMAL(18,3) NOT NULL,        -- 成交单价
+                             fee           DECIMAL(18,2) NOT NULL DEFAULT 0,  -- 手续费
+                             INDEX (stock_code, timestamp)
+);
+
+
+CREATE TABLE position (
+                          position_id  INT AUTO_INCREMENT PRIMARY KEY,
+                          stock_code   VARCHAR(10)   NOT NULL UNIQUE,  -- 股票代码唯一（单只股票一条记录）
+                          quantity     INT           NOT NULL,         -- 当前持仓数量
+                          avg_cost     DECIMAL(18,3) NOT NULL,         -- 动态计算的平均成本价
+                          last_updated DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP        -- 最后更新时间
+);
+
+# 持仓成本价
+# INSERT INTO `position` (stock_code, quantity, avg_cost, last_updated)
+SELECT stock_code,
+       SUM(CASE WHEN type = 'BUY' THEN quantity
+                when type = 'SELL'then -quantity else 0 END)   AS quantity,
+       ROUND(SUM(CASE WHEN type = 'BUY' THEN quantity * price + fee ELSE 0 END) /
+             SUM(CASE WHEN type = 'BUY' THEN quantity
+                      when type = 'SELL'then -quantity else 0 END), 3) AS avg_cost,
+       MAX(timestamp)                                                 AS last_updated
+FROM (SELECT stock_code,
+             type,
+             quantity,
+             price,
+             fee,
+             timestamp,
+             SUM(CASE WHEN `type` = 'BUY' THEN quantity * price + fee ELSE 0 END)
+                 OVER (PARTITION BY stock_code ORDER BY timestamp)    AS cumulative_cost,
+             SUM(CASE WHEN `type` = 'BUY' THEN quantity ELSE 0 END)
+                 OVER (PARTITION BY stock_code ORDER BY timestamp)    AS cumulative_quantity
+      FROM `transaction`) AS subquery
+GROUP BY stock_code
+HAVING quantity >= 0;
+;
+
+CREATE TABLE stock_price (
+                             stock_code        VARCHAR(10)   NOT NULL,   -- 股票代码（如002991.SZ）
+                             date              DATE          NOT NULL,   -- 交易日
+                             open              DECIMAL(18,2) NOT NULL,   -- 开盘价
+                             high              DECIMAL(18,2) NOT NULL,   -- 最高价
+                             low               DECIMAL(18,2) NOT NULL,   -- 最低价
+                             close             DECIMAL(18,2) NOT NULL,   -- 收盘价
+                             volume            BIGINT        NOT NULL,   -- 成交量（股）
+                             amount            DECIMAL(18,2) NOT NULL,   -- 成交额（元）
+                             outstanding_share BIGINT        NOT NULL,   -- 流通股本（股）
+                             turnover          DECIMAL(2,18) NOT NULL,   -- 换手率（如0.016853）
+                             PRIMARY KEY (stock_code, date),             -- 复合主键
+                             INDEX (date),                               -- 按日期查询优化
+                             INDEX (stock_code)                          -- 按股票代码查询优化
+);
+
+
+CREATE TABLE cashflow (
+                          cashflow_id  INT AUTO_INCREMENT PRIMARY KEY,
+                          type         ENUM('DEPOSIT','WITHDRAW') NOT NULL,  -- 操作类型
+                          amount       DECIMAL(18,3) NOT NULL,         -- 金额
+                          timestamp    DATETIME      NOT NULL          -- 操作时间
+);
+
+
+CREATE VIEW v_current_asset AS
+SELECT
+    a.cash,
+    SUM(p.quantity * sp.close) AS position_value,
+    a.cash + SUM(p.quantity * sp.close) AS total_asset
+FROM asset_snapshot a
+         JOIN position p ON 1=1  -- 单账户无需关联条件
+         JOIN stock_price sp ON p.stock_code = sp.stock_code
+WHERE sp.date = (SELECT MAX(date) FROM stock_price);  -- 获取最新价格
+
+
+
+-- 示例：统计 2023 年 10 月盈亏
+CREATE VIEW v_monthly_pnl AS
+SELECT
+    (SELECT total_asset FROM asset_snapshot WHERE date = '2023-10-31') -
+    (SELECT total_asset FROM asset_snapshot WHERE date = '2023-09-30') -
+    (SELECT SUM(IF(type='DEPOSIT', amount, -amount))
+     FROM cashflow
+     WHERE timestamp BETWEEN '2023-10-01' AND '2023-10-31') AS pnl;
+
+
+
+CREATE VIEW v_position_pnl AS
+SELECT
+    p.stock_code,
+    p.quantity,
+    p.avg_cost,
+    sp.close AS current_price,
+    (sp.close - p.avg_cost) * p.quantity AS unrealized_pnl  -- 未实现盈亏
+FROM position p
+         JOIN stock_price sp ON p.stock_code = sp.stock_code
+WHERE sp.date = (SELECT MAX(date) FROM stock_price);
 

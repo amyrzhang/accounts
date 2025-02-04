@@ -12,7 +12,7 @@ db = SQLAlchemy()
 
 
 class Cashflow(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    cashflow_id = db.Column(db.String(36))
     time = db.Column(db.DateTime, nullable=False)  # 交易时间
     type = db.Column(db.String(10), nullable=True)  # 类型
     counterparty = db.Column(db.String(128), nullable=True)  # 交易对方
@@ -24,9 +24,12 @@ class Cashflow(db.Model):
     category = db.Column(db.String(128), nullable=True)  # 类别
     source = db.Column(db.String(128), nullable=True)  # 来源
 
+    __table_args__ = (
+        PrimaryKeyConstraint('cashflow_id', 'debit_credit'),
+    )
     def to_dict(self):
         return {
-            'id': self.id,
+            'cashflow_id': self.cashflow_id,
             'time': self.time.strftime('%Y-%m-%d %H:%M:%S'),
             'type': self.type,
             'counterparty': self.counterparty,
