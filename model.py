@@ -3,6 +3,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from openpyxl.styles.builtins import percent
 from sqlalchemy import PrimaryKeyConstraint
+import akshare as ak
 
 from utils import format_currency
 
@@ -10,7 +11,7 @@ from utils import format_currency
 db = SQLAlchemy()
 
 
-class Transaction(db.Model):
+class Cashflow(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     time = db.Column(db.DateTime, nullable=False)  # 交易时间
     type = db.Column(db.String(10), nullable=True)  # 类型
@@ -156,4 +157,45 @@ class AccountActivity(db.Model):
         }
 
 
+class StockPrice(db.Model):
+    __tablename__ = 'stock_price'
 
+    stock_code = db.Column(db.String(10), nullable=False)  # 股票代码（如002991.SZ）
+    date = db.Column(db.Date, nullable=False)  # 交易日
+    open = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 开盘价
+    high = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 最高价
+    low = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 最低价
+    close = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 收盘价
+    volume = db.Column(db.BigInteger, nullable=False)  # 成交量（股）
+    amount = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 成交额（元）
+    outstanding_share = db.Column(db.BigInteger, nullable=False)  # 流通股本（股）
+    turnover = db.Column(db.Numeric(precision=10, scale=6), nullable=False)  # 换手率（如0.016853）
+
+    __table_args__ = (
+        PrimaryKeyConstraint('stock_code', 'date'),  # 复合主键
+        db.Index('idx_date', 'date'),  # 按日期查询优化
+        db.Index('idx_stock_code', 'stock_code')  # 按股票代码查询优化
+    )
+
+    def to_dict(self):
+        return {
+            'stock_code': self.stock_code,
+            'date': self.date.strftime('%Y-%m-%d'),
+            'open': float(self.open),
+            'high': float(self.high),
+            'low': float(self.low),
+            'close': float(self.close),
+            'volume': int(self.volume),
+            'amount': float(self.amount),
+            'outstanding_share': int(self.outstanding_share),
+            'turnover': float(self.turnover)
+        }
+
+if __name__ == '__main__':
+    stock_ganyuan = ak.stock_zh_a_daily(symbol="sz002991", adjust="")
+    stock_ganyuan["stock_code"] = "sz002991"
+    stock_anjing = ak.stock_zh_a_daily(symbol="sh603345", adjust="")
+    stock_anjing["stock_code"] = "sh603345"
+
+    stock_ganyuan.to_sql('stock_price', con=db.engine, if_exists='append', index=False)
+    stock_anjing.to_sql('stock_price', con=db.engine, if_exists='append', index=False)
