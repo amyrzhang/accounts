@@ -85,7 +85,17 @@ with base_tb as (
                        on a.account_name = t.payment_method
     where is_active = 1
     order by account_type desc, balance desc
-)
+),
+stock_tb as (
+        select null as id,'股票' as account_name
+             , 'investment'
+             , sum(position_value) as balance
+             , null as credit
+             , null as debit
+             , max(date) as create_time
+             , min(date) as update_time
+             , 1 as is_included
+        from v_current_asset)
 select max(id) as id
       , '' as account_name
       , '' as account_type
@@ -98,7 +108,11 @@ select max(id) as id
 from base_tb
 union all
 select *
-from base_tb;
+from base_tb
+union all
+select *
+from stock_tb
+;
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
