@@ -12,6 +12,7 @@ import model
 from config import Config
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage, generate_cashflow_id
+from price_getter import *
 
 
 app = Flask(__name__)
@@ -351,4 +352,12 @@ def delete_transaction(transaction_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+
+        # stock_list = ['002991', '603345']
+        # for stock in stock_list:
+        #     insert_stock_data(stock)
+        # fund_list = ['513500', '513210', '510300']
+        # for fund in fund_list:
+        #     insert_fund_data(fund)
+        # insert_fund_data('510300')
     app.run(debug=True, host='0.0.0.0', port=18080)

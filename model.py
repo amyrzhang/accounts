@@ -136,7 +136,7 @@ class AccountBalance(db.Model):
 class StockPrice(db.Model):
     __tablename__ = 'stock_price'
 
-    stock_code = db.Column(db.String(10), nullable=False)  # 股票代码（如002991.SZ）
+    stock_code = db.Column(db.String(10), nullable=False)  # 股票代码（如002991）
     date = db.Column(db.Date, nullable=False)  # 交易日
     open = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 开盘价
     high = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 最高价
@@ -144,8 +144,10 @@ class StockPrice(db.Model):
     close = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 收盘价
     volume = db.Column(db.BigInteger, nullable=False)  # 成交量（股）
     amount = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 成交额（元）
-    outstanding_share = db.Column(db.BigInteger, nullable=False)  # 流通股本（股）
-    turnover = db.Column(db.Numeric(precision=10, scale=6), nullable=False)  # 换手率（如0.016853）
+    amplitude = db.Column(db.Numeric(precision=10, scale=4), nullable=True)
+    change_percentage = db.Column(db.Numeric(precision=18, scale=2), nullable=True)
+    change_amount = db.Column(db.Numeric(precision=24, scale=18), nullable=True)
+    turnover = db.Column(db.Numeric(precision=24, scale=18), nullable=False)  # 换手率（如0.016853）
 
     __table_args__ = (
         PrimaryKeyConstraint('stock_code', 'date'),  # 复合主键
