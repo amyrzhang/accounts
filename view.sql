@@ -60,7 +60,7 @@ order by time desc;
 
 # 资产余额表更新
 create view account_balance as
-with base_tb as (
+with cash_tb as (
     select a.id
          , a.account_name
          , a.account_type
@@ -88,31 +88,56 @@ with base_tb as (
 ),
 stock_tb as (
         select null as id,'股票' as account_name
-             , 'investment'
+             , 'investment' as account_type
              , sum(position_value) as balance
-             , null as credit
-             , null as debit
+             , 0 as credit
+             , 0 as debit
              , max(date) as create_time
              , min(date) as update_time
              , 1 as is_included
-        from v_current_asset)
-select max(id) as id
-      , '' as account_name
-      , '' as account_type
-      , sum(if(is_included=1, balance, 0)) as balance
-      , sum(if(is_included=1, income, 0)) as credit
-      , sum(if(is_included=1, expenditure, 0)) as debit
-      , max(create_time) as create_time
-     , max(update_time) as update_time
-     , sum(is_included) as is_included
-from base_tb
-union all
-select *
-from base_tb
-union all
-select *
-from stock_tb
-;
+        from v_current_asset),
+base_tb as (
+    select *
+    from cash_tb
+    union all
+    select *
+    from stock_tb
+) ,
+total_tb as (
+    select
+        max(id) as id
+         , '' as account_name
+         , '' as account_type
+         , round(sum(if(is_included=1, balance, 0)), 2) as balance
+         , sum(if(is_included=1, income, 0)) as credit
+         , sum(if(is_included=1, expenditure, 0)) as debit
+         , max(create_time) as create_time
+         , max(update_time) as update_time
+         , sum(is_included) as is_included
+    from base_tb
+)
+select
+    a.id
+    , a.account_name
+    , a.account_type
+    , a.balance
+    , round(a.balance / t.balance * 100, 2) as percent
+    , a.credit
+    , a.debit
+    , a.create_time
+    , a.update_time
+    , a.is_included
+from (
+         select *
+         from total_tb
+         union all
+         select *
+         from base_tb
+     )a
+cross join total_tb t
+order by is_included desc , balance desc;
+
+
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
