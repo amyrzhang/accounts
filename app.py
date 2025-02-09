@@ -60,6 +60,7 @@ def create_cashflow():
 
         if not existing_transaction:
             transaction = Cashflow(
+                cashflow_id=generate_cashflow_id(),
                 time=time,
                 type=data.get('type'),
                 counterparty=data.get('counterparty'),
