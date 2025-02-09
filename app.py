@@ -40,23 +40,42 @@ def get_cashflows():
 
 @app.route('/transactions', methods=['POST'])
 def create_cashflow():
-    """增加一条记录"""
-    data = request.get_json()
-    transaction = Cashflow(
-        time=datetime.strptime(data.get('time'), '%Y-%m-%d %H:%M:%S'),
-        type=data.get('type'),
-        counterparty=data.get('counterparty'),
-        goods=data.get('goods'),
-        debit_credit=data.get('debit_credit'),
-        amount=data.get('amount'),
-        payment_method=data.get('payment_method'),
-        status=data.get('status'),
-        category=data.get('category'),
-        source=data.get('source'),
-    )
-    db.session.add(transaction)
+    """增加 cashflow 记录"""
+    data_list = request.get_json()
+    created_transaction = []
+
+    for data in data_list:
+        time = datetime.strptime(data.get('time'), '%Y-%m-%d %H:%M:%S')
+        debit_credit = data.get('debit_credit')
+        amount = data.get('amount')
+        payment_method = data.get('payment_method')
+
+        # 查询是否存在相同记录
+        existing_transaction = Cashflow.query.filter(
+            func.date_format(Cashflow.time, '%Y-%m-%d %H:%i') == time.strftime('%Y-%m-%d %H:%M'),
+            Cashflow.debit_credit == debit_credit,
+            Cashflow.amount == amount,
+            Cashflow.payment_method == payment_method
+        ).first()
+
+        if not existing_transaction:
+            transaction = Cashflow(
+                time=time,
+                type=data.get('type'),
+                counterparty=data.get('counterparty'),
+                goods=data.get('goods'),
+                debit_credit=debit_credit,
+                amount=amount,
+                payment_method=payment_method,
+                status=data.get('status'),
+                category=data.get('category'),
+                source=data.get('source'),
+            )
+            db.session.add(transaction)
+            created_transaction.append(transaction)
+
     db.session.commit()
-    return jsonify(transaction.to_dict()), 200
+    return jsonify(transaction.to_dict() for transaction in created_transaction), 200
 
 
 @app.route('/transactions/<int:cashflow_id>', methods=['DELETE'])
