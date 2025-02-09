@@ -32,3 +32,4 @@ flask_sqlalchemy==3.1.1
 pymysql==1.1.1
 cryptography==43.0.3
 akshare==1.15.80
+shortuuid==1.0.13

@@ -76,7 +76,10 @@ def create_cashflow():
             created_transaction.append(transaction)
 
     db.session.commit()
-    return jsonify(transaction.to_dict() for transaction in created_transaction), 200
+    return jsonify({
+            "cashflow_id": [t.cashflow_id for t in created_transaction],
+            "message": "Cashflow created successfully"
+        }), 201
 
 
 @app.route('/transactions/<int:cashflow_id>', methods=['DELETE'])
@@ -93,8 +96,25 @@ def update_cashflow(cashflow_id):
     """修改一条记录"""
     data = request.get_json()
     transaction = Cashflow.query.get_or_404(cashflow_id)
-    transaction.debit_credit = data.get('debit_credit')
-    transaction.category = data.get('category')
+
+    # 检查并更新字段
+    if 'time' in data:
+        transaction.time = datetime.strptime(data['time'], '%Y-%m-%d %H:%M:%S')
+    if 'debit_credit' in data:
+        transaction.debit_credit = data['debit_credit']
+    if 'amount' in data:
+        transaction.amount = data['amount']
+    if 'counterparty' in data:
+        transaction.counterparty = data['counterparty']
+    if 'payment_method' in data:
+        transaction.payment_method = data['payment_method']
+    if 'category' in data:
+        transaction.category = data['category']
+    if 'status' in data:
+        transaction.status = data['status']
+    if 'source' in data:
+        transaction.source = data['source']
+
     db.session.commit()
     return jsonify(transaction.to_dict())
 

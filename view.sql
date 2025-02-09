@@ -37,6 +37,7 @@ CREATE TABLE `account_info`
 
 
 # 卡余额，用账户表关联
+create view v_account_activity as
 select cashflow_id,
        time,
        debit_credit,
@@ -49,9 +50,7 @@ select cashflow_id,
                else 0 end) over (partition by payment_method order by time) as balance,
        payment_method as account_name,
        category,
-       status,
-       type,
-       source
+       type
 from cashflow
 order by time desc;
 
