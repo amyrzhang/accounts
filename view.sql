@@ -262,22 +262,27 @@ CREATE TABLE stock_price (
 # );
 
 # 持仓成本价
+# drop view v_position;
 create view v_position as
-SELECT stock_code,
-       SUM(IF(type = 'BUY', quantity, 0))           AS quantity,
-       SUM(CASE
-               WHEN type = 'BUY' THEN quantity * price + fee
-               when type = 'DIVIDEND' then -quantity * price
-               ELSE 0 END) /
-       SUM(IF(type = 'BUY', quantity, 0))          AS avg_cost,
-       ROUND(SUM(CASE
-                     WHEN type = 'BUY' THEN quantity * price + fee
-                     when type = 'DIVIDEND' then -quantity * price
-                     ELSE 0 END) /
-             SUM(IF(type = 'BUY', quantity, 0)), 3) AS avg_cost_short,
-       MAX(timestamp)                               AS last_updated
-FROM transaction
-GROUP BY stock_code;
+select stock_code
+    , quantity
+    , cost/quantity as avg_cost
+    , round(cost/quantity, 3) as avg_cost_short
+    , last_updated
+from (
+         SELECT stock_code,
+                SUM(case
+                        when type = 'BUY' then quantity
+                        when type = 'SELL' then -quantity else 0 end)           AS quantity,
+                SUM(CASE
+                        WHEN type = 'BUY' THEN quantity * price + fee
+                        when type = 'SELL' then -quantity * price + fee
+                        when type = 'DIVIDEND' then -quantity * price
+                        ELSE 0 END)         AS cost,
+                  MAX(timestamp)                               AS last_updated
+          FROM transaction
+          GROUP BY stock_code
+)tb
 
 
 
@@ -292,6 +297,7 @@ FROM asset_snapshot a
 WHERE sp.date = (SELECT MAX(date) FROM stock_price);  -- 获取最新价格
 
 # 持仓盈亏，TODO： 盈亏比例有问题
+# drop view v_current_asset;
 create view v_current_asset as
 select
     p.stock_code
@@ -303,23 +309,7 @@ select
     , round((p.quantity * sp.close - p.avg_cost * p.quantity) / (p.quantity * p.avg_cost) * 100, 3) as pnl_ratio
     , round(p.quantity * sp.close, 2) as position_value
     , round(p.quantity * p.avg_cost,2) as realized_pnl
-from (
-         SELECT stock_code,
-                SUM(IF(type = 'BUY', quantity, 0))           AS quantity,
-                SUM(CASE
-                        WHEN type = 'BUY' THEN quantity * price + fee
-                        when type = 'DIVIDEND' then -quantity * price
-                        ELSE 0 END) /
-                SUM(IF(type = 'BUY', quantity, 0))          AS avg_cost,
-                ROUND(SUM(CASE
-                              WHEN type = 'BUY' THEN quantity * price + fee
-                              when type = 'DIVIDEND' then -quantity * price
-                              ELSE 0 END) /
-                      SUM(IF(type = 'BUY', quantity, 0)), 3) AS avg_cost_short,
-                MAX(timestamp)                               AS last_updated
-         FROM transaction
-         GROUP BY stock_code
-     ) p
+from v_position p
 left join (
         select date, stock_code, close,
             row_number() over (partition by stock_code order by date desc) as rn
@@ -348,4 +338,3 @@ SELECT
 FROM position p
          JOIN stock_price sp ON p.stock_code = sp.stock_code
 WHERE sp.date = (SELECT MAX(date) FROM stock_price);
-

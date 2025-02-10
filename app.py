@@ -306,47 +306,54 @@ def delete_transfer(cashflow_id):
 
 @app.route('/trans', methods=['POST'])
 def create_transaction():
-    data = request.get_json()
-    if data.get('type') == 'BUY':
-        debit_credit = '支出'
-        amount = data.get('price') * data.get('quantity') + data.get('fee')
-    else:
-        debit_credit = '收入'
-        amount = data.get('price') * data.get('quantity') - data.get('fee')
+    data_list = request.get_json()
+    created_transaction = []
 
-    try:
-        with db.session.begin():
-            # 更新 transaction 表
-            transaction_record = model.Transaction(
-                stock_code=data.get('stock_code'),
-                type=data.get('type'),
-                timestamp=data.get('timestamp'),
-                quantity=data.get('quantity'),
-                price=data.get('price'),
-                fee=data.get('fee')
-            )
-            db.session.add(transaction_record)
-            db.session.flush()  # 刷新会话以生成 transaction_id
+    for data in data_list:
+        payment_method = data.get('payment_method') if data.get('payment_method') else '东方财富证券(5700)'
+        if data.get('type') == 'BUY':
+            debit_credit = '支出'
+            type = "申购"
+            amount = data.get('price') * data.get('quantity') + data.get('fee')
+        else:
+            debit_credit = '收入'
+            type = "赎回"
+            amount = data.get('price') * data.get('quantity') - data.get('fee')
 
-            # 更新 cashflow 表
-            cashflow_record = model.Cashflow(
-                cashflow_id=generate_cashflow_id(),
-                transaction_id=transaction_record.transaction_id,  # 使用生成的 transaction_id
-                time=data.get('timestamp'),
-                payment_method='东方财富证券(5700)',
-                counterparty=data.get('stock_code'),
-                debit_credit=debit_credit,
-                amount=amount,
-                goods=f'股票代码：{data.get("stock_code")}，数量：{data.get("quantity")}，价格：{data.get("price")}，费用：{data.get("fee")}，金额：{amount}'
-            )
-            db.session.add(cashflow_record)
-        return jsonify({
-            "transaction_id": transaction_record.transaction_id,
-            "message": "Transaction created successfully \nCashflow created successfully"
-        }), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        try:
+            with db.session.begin():
+                # 更新 transaction 表
+                transaction_record = model.Transaction(
+                    stock_code=data.get('stock_code'),
+                    type=data.get('type'),
+                    timestamp=data.get('timestamp'),
+                    quantity=data.get('quantity'),
+                    price=data.get('price'),
+                    fee=data.get('fee')
+                )
+                db.session.add(transaction_record)
+                db.session.flush()  # 刷新会话以生成 transaction_id
+
+                # 更新 cashflow 表
+                cashflow_record = model.Cashflow(
+                    cashflow_id=generate_cashflow_id(),
+                    transaction_id=transaction_record.transaction_id,  # 使用生成的 transaction_id
+                    type=type,
+                    category="投资理财",
+                    time=data.get('timestamp'),
+                    payment_method=payment_method,
+                    counterparty=data.get('stock_code'),
+                    debit_credit=debit_credit,
+                    amount=amount,
+                    goods=f'股票代码：{data.get("stock_code")}，数量：{data.get("quantity")}，价格：{data.get("price")}，费用：{data.get("fee")}，金额：{amount}'
+                )
+                db.session.add(cashflow_record)
+                created_transaction.append(transaction_record.transaction_id)
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    return jsonify({"message": "Transaction created successfully", "transaction_id": created_transaction})
 
 
 @app.route('/trans/<int:transaction_id>', methods=['GET'])
