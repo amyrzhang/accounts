@@ -12,10 +12,10 @@ import chardet
 def load_to_df(filepath):
     if '微信支付账单' in filepath:
         wp = WeixinProcessor(filepath)
-        return wp.df
+        return wp.df.to_dict(orient='records')
     if 'alipay_record' in filepath:
         ap = AlipayProcessor(filepath)
-        return ap.df
+        return ap.df.to_dict(orient='records')
     return f'Unsupported file type: {filepath}', 400
 
 

@@ -37,15 +37,11 @@ def get_cashflows():
     transactions = query.order_by(desc(Cashflow.time)).all()
     return jsonify([transaction.to_dict() for transaction in transactions])
 
-
-@app.route('/transactions', methods=['POST'])
-def create_cashflow():
-    """增加 cashflow 记录"""
-    data_list = request.get_json()
+def add_cashflow_records(data_list):
     created_transaction = []
 
     for data in data_list:
-        time = datetime.strptime(data.get('time'), '%Y-%m-%d %H:%M:%S')
+        time = datetime.strptime(data.get('time'), '%Y-%m-%d %H:%M:%S') if isinstance(data.get('time'), str) else data.get('time')
         debit_credit = data.get('debit_credit')
         amount = data.get('amount')
         payment_method = data.get('payment_method')
@@ -76,10 +72,17 @@ def create_cashflow():
             created_transaction.append(transaction)
 
     db.session.commit()
+    return created_transaction
+
+@app.route('/transactions', methods=['POST'])
+def create_cashflow():
+    """增加 cashflow 记录"""
+    data_list = request.get_json()
+    created_transaction = add_cashflow_records(data_list)
     return jsonify({
-            "cashflow_id": [t.cashflow_id for t in created_transaction],
-            "message": "Cashflow created successfully"
-        }), 201
+        "cashflow_id": [t.cashflow_id for t in created_transaction],
+        "message": "Cashflow created successfully"
+    }), 201
 
 
 @app.route('/transactions/<int:cashflow_id>', methods=['DELETE'])
@@ -126,8 +129,6 @@ def get_cashflow(cashflow_id):
     return jsonify(transaction.to_dict())
 
 
-
-
 @app.route('/upload', methods=['POST'])
 def upload_file():
     # 检查是否有文件在请求中
@@ -145,7 +146,7 @@ def upload_file():
             return f"File already exists: {file_name}", 409
         file.save(file_path)
         data = load_to_df(file_path)
-        data.to_sql('transaction', con=db.engine, if_exists='append', index=False)
+        created_transaction = add_cashflow_records(data)
         return f"File saved successfully as {file_name}", 200
 
 
@@ -393,6 +394,8 @@ def delete_transaction(transaction_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
 
 
 
