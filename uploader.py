@@ -78,7 +78,7 @@ class Processor:
     @staticmethod
     def process_category_row(row):
         """识别交易类别"""
-        text = row['交易对方'] + ' ' + row['商品']
+        text = str(row['交易对方']) + ' ' + str(row['商品'])
         shopping_pattern = '平台商户|抖音电商商家|快递'  # 根据交易对方判断
         transportation_pattern = '出行|加油|停车|中铁|12306'  # 根据二者判断
         telecommunication_pattern = '联通'  # 根据交易对方判断
@@ -162,6 +162,9 @@ class AlipayProcessor(Processor):
         )
         df['交易时间'] = pd.to_datetime(df['交易时间'])  # 数据类型更改
         df['金额'] = df['金额'].astype('float64')  # 数据类型更改
+
+        # 处理 NaN 值
+        df['交易对方'].fillna('', inplace=True)
 
         # 多账户合并付款，以 & 分隔，需手工整理
         df = df.apply(self.clean_alipay_payment_method, axis='columns')
