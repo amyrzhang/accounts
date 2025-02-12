@@ -58,6 +58,7 @@ order by time desc;
 
 
 # 资产余额表更新
+# drop view account_balance;
 create view account_balance as
 with cash_tb as (
     select a.id
@@ -86,13 +87,14 @@ with cash_tb as (
     order by account_type desc, balance desc
 ),
 stock_tb as (
-        select null as id,'股票' as account_name
+        select null as id
+             , stock_code as account_name
              , 'investment' as account_type
-             , sum(position_value) as balance
+             , position_value as balance
              , 0 as credit
              , 0 as debit
-             , max(date) as create_time
-             , min(date) as update_time
+             , date as create_time
+             , date as update_time
              , 1 as is_included
         from v_current_asset),
 base_tb as (
