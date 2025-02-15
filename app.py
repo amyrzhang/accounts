@@ -239,9 +239,7 @@ def create_transfer():
     type, goods = '自转账', '转账'
 
     # 生成唯一 cashflow_id
-    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-    random_number = str(random.getrandbits(4))
-    cashflow_id = current_time + random_number
+    cashflow_id = generate_cashflow_id()
 
     try:
         # 开启事务
