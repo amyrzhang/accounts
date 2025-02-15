@@ -292,30 +292,6 @@ def get_transfer(cashflow_id):
     return jsonify(result), 200
 
 
-@app.route('/transfer/<string:cashflow_id>', methods=['DELETE'])
-def delete_transfer(cashflow_id):
-    try:
-        # 查询同一交易的两条记录
-        records = Cashflow.query.filter_by(
-            cashflow_id=cashflow_id
-        ).all()
-
-        if not records:
-            return jsonify({"error": "Transaction not found"}), 404
-
-        # 删除记录
-        for record in records:
-            db.session.delete(record)
-
-        # 提交事务
-        db.session.commit()
-
-        return jsonify({"message": "Transaction deleted successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route('/trans', methods=['POST'])
 def create_transaction():
     data_list = request.get_json()
