@@ -85,16 +85,29 @@ def create_cashflow():
     }), 201
 
 
-@app.route('/transactions/<int:cashflow_id>', methods=['DELETE'])
+@app.route('/transactions/<string:cashflow_id>', methods=['DELETE'])
 def delete_cashflow(cashflow_id):
-    """根据 ID 删除一条记录"""
-    transaction = Cashflow.query.get_or_404(cashflow_id)
-    db.session.delete(transaction)
-    db.session.commit()
-    return '', 204
+    """根据 cashflow_id 删除所有相关记录"""
+    try:
+        # 查询所有 cashflow_id 匹配的记录
+        transactions = Cashflow.query.filter_by(cashflow_id=cashflow_id).all()
+
+        if not transactions:
+            return jsonify({"error": "No records found with the given cashflow_id"}), 404
+
+        # 删除所有匹配的记录
+        for transaction in transactions:
+            db.session.delete(transaction)
+
+        # 提交事务
+        db.session.commit()
+        return f'f{cashflow_id} deleted successfully', 204  # 返回空响应和状态码204
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 
-@app.route('/transactions/<int:cashflow_id>', methods=['PUT'])
+@app.route('/transactions/<string:cashflow_id>', methods=['PUT'])
 def update_cashflow(cashflow_id):
     """修改一条记录"""
     data = request.get_json()
@@ -122,7 +135,7 @@ def update_cashflow(cashflow_id):
     return jsonify(transaction.to_dict())
 
 
-@app.route('/transactions/<int:cashflow_id>', methods=['GET'])
+@app.route('/transactions/<string:cashflow_id>', methods=['GET'])
 def get_cashflow(cashflow_id):
     """根据 ID 查询一条记录"""
     transaction = Cashflow.query.get_or_404(cashflow_id)
