@@ -229,6 +229,7 @@ def get_account_balance():
     result = model.AccountBalance.query.with_entities(
         AccountBalance.account_name,
         AccountBalance.account_type,
+        AccountBalance.balance,
         AccountBalance.percent,
         AccountBalance.credit,
         AccountBalance.debit
