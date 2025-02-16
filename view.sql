@@ -109,7 +109,7 @@ total_tb as (
         max(id) as id
          , '' as account_name
          , '' as account_type
-         , round(sum(if(is_included=1, balance, 0)), 2) as balance
+         , sum(if(is_included=1, balance, 0)) as balance
          , sum(if(is_included=1, income, 0)) as credit
          , sum(if(is_included=1, expenditure, 0)) as debit
          , max(create_time) as create_time
@@ -121,10 +121,10 @@ select
     a.id
     , a.account_name
     , a.account_type
-    , a.balance
+    , round(a.balance, 2) as balance
     , round(a.balance / t.balance * 100, 2) as percent
-    , a.credit
-    , a.debit
+    , round(a.credit, 2) as credit
+    , round(a.debit, 2) as debit
     , a.create_time
     , a.update_time
     , a.is_included
@@ -142,6 +142,7 @@ order by is_included desc , balance desc;
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
+# drop view monthly_balance;
 create view monthly_balance as
 select month
        , balance
@@ -155,11 +156,19 @@ from (select date_format(time, '%Y-%m')                      as month
                      when debit_credit = '支出' then -amount
                      else 0 end)                             as balance
            , sum(case
-                     when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职' then amount
+                     when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职|退税' then amount
                      else 0 end)                             as income
            , sum(if(debit_credit = '收入', amount, 0)) as credit
            , sum(if(debit_credit = '支出', amount, 0)) as debit
       from cashflow
+      where transaction_id is null  -- 银证转账
+        and payment_method not rlike '公积金'  -- 住房公积金汇缴
+        and cashflow_id in (-- 自转账
+          select cashflow_id
+          from money_track.cashflow
+          group by cashflow_id
+          having count(*) = 1
+      )
       group by month) tb
 order by month;
 
