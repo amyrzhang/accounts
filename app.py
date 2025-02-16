@@ -179,6 +179,13 @@ def get_monthly_report():
     })
 
 
+@app.route('/monthly/balance', methods=['GET'])
+def get_monthly_balance():
+    records = MonthlyBalance.query.order_by(MonthlyBalance.month.desc()).limit(15).all()
+    asc_records = sorted(records, key=lambda x: x.month)
+    return jsonify([rcd.to_dict() for rcd in asc_records])
+
+
 @app.route('/report/top10', methods=['GET'])
 def get_top10_transactions():
     records = MonthlyExpCDF.query.filter(
