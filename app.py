@@ -138,8 +138,13 @@ def update_cashflow(cashflow_id):
 @app.route('/transactions/<string:cashflow_id>', methods=['GET'])
 def get_cashflow(cashflow_id):
     """根据 ID 查询一条记录"""
-    transaction = Cashflow.query.get_or_404(cashflow_id)
-    return jsonify(transaction.to_dict())
+    # 查询所有 cashflow_id 匹配的记录
+    transactions = Cashflow.query.filter_by(cashflow_id=cashflow_id).all()
+
+    if not transactions:
+        return jsonify({"error": "No records found with the given cashflow_id"}), 404
+
+    return jsonify([t.to_dict() for t in transactions])
 
 
 @app.route('/upload', methods=['POST'])
