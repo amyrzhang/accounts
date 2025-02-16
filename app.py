@@ -236,6 +236,7 @@ def get_account_balance():
     return jsonify([{
         'account_name': r.account_name,
         'account_type': r.account_type,
+        'balance': r.balance,
         'percent': r.percent,
         'credit': r.credit,
         'debit': r.debit
