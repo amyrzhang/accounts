@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import random
 
-from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction
+from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance
 import model
 from config import Config
 from uploader import load_to_df
@@ -226,8 +226,20 @@ def get_account_activity():
 
 @app.route('/account/balance', methods=['GET'])
 def get_account_balance():
-    result = model.AccountBalance.query.all()
-    return jsonify([r.to_dict() for r in result])
+    result = model.AccountBalance.query.with_entities(
+        AccountBalance.account_name,
+        AccountBalance.account_type,
+        AccountBalance.percent,
+        AccountBalance.credit,
+        AccountBalance.debit
+    ).all()
+    return jsonify([{
+        'account_name': r.account_name,
+        'account_type': r.account_type,
+        'percent': r.percent,
+        'credit': r.credit,
+        'debit': r.debit
+    } for r in result])
 
 @app.route('/transfer', methods=['POST'])
 def create_transfer():

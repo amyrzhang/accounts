@@ -114,6 +114,7 @@ class AccountBalance(db.Model):
     account_name = db.Column(db.String(255), nullable=False)
     account_type = db.Column(db.String(50), nullable=False)
     balance = db.Column(db.Numeric(precision=54, scale=2), nullable=False)
+    percent = db.Column(db.Numeric(precision=54, scale=2), nullable=False)
     debit = db.Column(db.Numeric(precision=54, scale=2), nullable=False)
     credit = db.Column(db.Numeric(precision=54, scale=2), nullable=False)
     create_time = db.Column(db.DateTime, nullable=True)
