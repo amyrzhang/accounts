@@ -1,14 +1,138 @@
-{
-    "time": "2024-09-27 11:28:03",
-    "amount": 7753.90,
-    "category": "工资",
-    "counterparty": "沧州市数据资产登记评价有限公司",
-    "expenditure_income": "收入",
-    "goods": "工资",
-    "pay_method": "民生银行储蓄卡(4827)",
-    "reversed": 0,
-    "source": "手工",
-    "status": "交易成功",
-    "type": "收款成功",
-    "processed_amount": 7753.90
-}
+[
+    {
+        "time": "2023-01-01 00:00:00",
+        "debit_credit": "支出",
+        "amount": 23.26,
+        "type": "快捷支付",
+        "counterparty": "2088041645634735",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-01 00:00:00",
+        "debit_credit": "支出",
+        "amount": 87.00,
+        "type": "掌上生活还款",
+        "counterparty": "张蕊 6225753072728116",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-03 00:00:00",
+        "debit_credit": "支出",
+        "amount": 1.50,
+        "type": "银联快捷支付",
+        "counterparty": "支付宝 215500690",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-03 00:00:00",
+        "debit_credit": "支出",
+        "amount": 4.40,
+        "type": "快捷支付",
+        "counterparty": "上海哈啰普惠科技有限公司 18272179",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-04 00:00:00",
+        "debit_credit": "支出",
+        "amount": 52.88,
+        "type": "银联快捷支付",
+        "counterparty": "汪顺清 888331073999999",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-08 00:00:00",
+        "debit_credit": "支出",
+        "amount": 74.60,
+        "type": "银联快捷支付",
+        "counterparty": "奚齐飞 888331073999999",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-09 00:00:00",
+        "debit_credit": "支出",
+        "amount": 37.26,
+        "type": "快捷支付",
+        "counterparty": "方洁 2088502941783555",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-11 00:00:00",
+        "debit_credit": "收入",
+        "amount": 8968.15,
+        "type": "代发工资",
+        "counterparty": "北京三快网络科技有限公司 12192744922200250",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "支出",
+        "amount": 3000.00,
+        "type": "朝朝宝转入",
+        "counterparty": "招银理财有限责任公司 755947338410699",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "收入",
+        "amount": 10000.00,
+        "type": "享定存开户起息",
+        "counterparty": "张蕊 6214830106987752",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "支出",
+        "amount": 3000.00,
+        "type": "朝朝宝转入",
+        "counterparty": "招银理财有限责任公司 755947338410699",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "支出",
+        "amount": 3000.00,
+        "type": "朝朝宝转入",
+        "counterparty": "招银理财有限责任公司 755947338410699",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "支出",
+        "amount": 3000.00,
+        "type": "朝朝宝转入",
+        "counterparty": "招银理财有限责任公司 755947338410699",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "支出",
+        "amount": 3000.00,
+        "type": "朝朝宝转入",
+        "counterparty": "招银理财有限责任公司 755947338410699",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "收入",
+        "amount": 7220.24,
+        "type": "朝朝宝转出",
+        "counterparty": "招银理财有限责任公司 755947338410699",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "支出",
+        "amount": 10000.00,
+        "type": "享定存开户起息",
+        "counterparty": "张蕊 6214830106987752",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    },
+    {
+        "time": "2023-01-15 00:00:00",
+        "debit_credit": "收入",
+        "amount": 1.50,
+        "type": "朝朝宝转出",
+        "counterparty": "招银理财有限责任公司 755947338410699",
+        "payment_amount": "招商银行储蓄卡(7752)"
+    }
+]

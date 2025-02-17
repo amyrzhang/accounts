@@ -142,6 +142,7 @@ order by is_included desc , balance desc;
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
+drop view monthly_balance;
 create view monthly_balance as
 select month
        , balance
@@ -160,6 +161,7 @@ from (select date_format(time, '%Y-%m')                      as month
            , sum(if(debit_credit = '收入', amount, 0)) as credit
            , sum(if(debit_credit = '支出', amount, 0)) as debit
       from cashflow
+      where transaction_id is null
       group by month) tb
 order by month;
 
