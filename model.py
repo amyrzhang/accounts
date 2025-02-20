@@ -2,7 +2,7 @@
 # 定义数据库模型
 from flask_sqlalchemy import SQLAlchemy
 from openpyxl.styles.builtins import percent
-from sqlalchemy import PrimaryKeyConstraint, ForeignKey
+from sqlalchemy import PrimaryKeyConstraint, ForeignKey, text
 import akshare as ak
 
 from utils import format_currency
@@ -14,7 +14,7 @@ db = SQLAlchemy()
 class Cashflow(db.Model):
     cashflow_id = db.Column(db.String(36))
     transaction_id = db.Column(db.Integer, ForeignKey('transaction.transaction_id'), nullable=True)
-    time = db.Column(db.DateTime, nullable=False)  # 交易时间
+    time = db.Column(db.DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))  # 交易时间
     type = db.Column(db.String(10), nullable=True)  # 类型
     counterparty = db.Column(db.String(128), nullable=True)  # 交易对方
     goods = db.Column(db.String(128), nullable=False)  # 商品
@@ -161,8 +161,8 @@ class Transaction(db.Model):
     transaction_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     stock_code = db.Column(db.String(10), nullable=False)  # 股票代码（如 002991.SZ）
     type = db.Column(db.String(10), nullable=False)  # 交易类型
-    timestamp = db.Column(db.DateTime, nullable=False)  # 交易时间
-    quantity = db.Column(db.Integer, nullable=False)  # 交易数量（股）
+    timestamp = db.Column(db.DateTime, nullable=True, server_default=text('CURRENT_TIMESTAMP'))  # 交易时间
+    quantity = db.Column(db.Numeric(precision=10, scale=2), nullable=False)  # 交易数量（股）
     price = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 成交单价
     fee = db.Column(db.Numeric(precision=18, scale=2), nullable=False, default=0)  # 手续费
 
