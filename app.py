@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import random
 
-from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction
+from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance
 import model
 from config import Config
 from uploader import load_to_df
@@ -85,16 +85,29 @@ def create_cashflow():
     }), 201
 
 
-@app.route('/transactions/<int:cashflow_id>', methods=['DELETE'])
+@app.route('/transactions/<string:cashflow_id>', methods=['DELETE'])
 def delete_cashflow(cashflow_id):
-    """根据 ID 删除一条记录"""
-    transaction = Cashflow.query.get_or_404(cashflow_id)
-    db.session.delete(transaction)
-    db.session.commit()
-    return '', 204
+    """根据 cashflow_id 删除所有相关记录"""
+    try:
+        # 查询所有 cashflow_id 匹配的记录
+        transactions = Cashflow.query.filter_by(cashflow_id=cashflow_id).all()
+
+        if not transactions:
+            return jsonify({"error": "No records found with the given cashflow_id"}), 404
+
+        # 删除所有匹配的记录
+        for transaction in transactions:
+            db.session.delete(transaction)
+
+        # 提交事务
+        db.session.commit()
+        return f'f{cashflow_id} deleted successfully', 204  # 返回空响应和状态码204
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 
-@app.route('/transactions/<int:cashflow_id>', methods=['PUT'])
+@app.route('/transactions/<string:cashflow_id>', methods=['PUT'])
 def update_cashflow(cashflow_id):
     """修改一条记录"""
     data = request.get_json()
@@ -122,11 +135,16 @@ def update_cashflow(cashflow_id):
     return jsonify(transaction.to_dict())
 
 
-@app.route('/transactions/<int:cashflow_id>', methods=['GET'])
+@app.route('/transactions/<string:cashflow_id>', methods=['GET'])
 def get_cashflow(cashflow_id):
     """根据 ID 查询一条记录"""
-    transaction = Cashflow.query.get_or_404(cashflow_id)
-    return jsonify(transaction.to_dict())
+    # 查询所有 cashflow_id 匹配的记录
+    transactions = Cashflow.query.filter_by(cashflow_id=cashflow_id).all()
+
+    if not transactions:
+        return jsonify({"error": "No records found with the given cashflow_id"}), 404
+
+    return jsonify([t.to_dict() for t in transactions])
 
 
 @app.route('/upload', methods=['POST'])
@@ -164,6 +182,13 @@ def get_monthly_report():
         'income': records.income,
         'balance': records.balance
     })
+
+
+@app.route('/monthly/balance', methods=['GET'])
+def get_monthly_balance():
+    records = MonthlyBalance.query.order_by(MonthlyBalance.month.desc()).limit(15).all()
+    asc_records = sorted(records, key=lambda x: x.month)
+    return jsonify([rcd.to_dict() for rcd in asc_records])
 
 
 @app.route('/report/top10', methods=['GET'])
@@ -213,8 +238,22 @@ def get_account_activity():
 
 @app.route('/account/balance', methods=['GET'])
 def get_account_balance():
-    result = model.AccountBalance.query.all()
-    return jsonify([r.to_dict() for r in result])
+    result = model.AccountBalance.query.with_entities(
+        AccountBalance.account_name,
+        AccountBalance.account_type,
+        AccountBalance.balance,
+        AccountBalance.percent,
+        AccountBalance.credit,
+        AccountBalance.debit
+    ).all()
+    return jsonify([{
+        'account_name': r.account_name,
+        'account_type': r.account_type,
+        'balance': r.balance,
+        'percent': r.percent,
+        'credit': r.credit,
+        'debit': r.debit
+    } for r in result])
 
 @app.route('/transfer', methods=['POST'])
 def create_transfer():
@@ -226,9 +265,7 @@ def create_transfer():
     type, goods = '自转账', '转账'
 
     # 生成唯一 cashflow_id
-    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-    random_number = str(random.getrandbits(4))
-    cashflow_id = current_time + random_number
+    cashflow_id = generate_cashflow_id()
 
     try:
         # 开启事务
@@ -279,30 +316,6 @@ def get_transfer(cashflow_id):
 
     result = [rcd.to_dict() for rcd in records]
     return jsonify(result), 200
-
-
-@app.route('/transfer/<string:cashflow_id>', methods=['DELETE'])
-def delete_transfer(cashflow_id):
-    try:
-        # 查询同一交易的两条记录
-        records = Cashflow.query.filter_by(
-            cashflow_id=cashflow_id
-        ).all()
-
-        if not records:
-            return jsonify({"error": "Transaction not found"}), 404
-
-        # 删除记录
-        for record in records:
-            db.session.delete(record)
-
-        # 提交事务
-        db.session.commit()
-
-        return jsonify({"message": "Transaction deleted successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/trans', methods=['POST'])
