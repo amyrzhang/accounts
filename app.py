@@ -258,7 +258,7 @@ def get_account_balance():
 @app.route('/transfer', methods=['POST'])
 def create_transfer():
     data = request.get_json()
-    time = data['time']
+    time = data.get('time')
     from_account = data['payment_method']
     to_account = data['counterparty']
     amount = data['amount']
