@@ -370,6 +370,63 @@ def create_transaction():
     return jsonify({"message": "Transaction created successfully", "transaction_id": created_transaction})
 
 
+@app.route('/trans/<int:transaction_id>', methods=['PUT'])
+def update_transaction(transaction_id):
+    """更新交易记录并级联更新现金流"""
+    data = request.get_json()
+
+    try:
+        # 1. 获取原始交易记录
+        transaction = Transaction.query.get_or_404(transaction_id)
+
+        # 2. 获取关联的现金流记录
+        cashflow = Cashflow.query.filter_by(transaction_id=transaction_id).first()
+        if not cashflow:
+            return jsonify({"error": "关联的现金流记录不存在"}), 404
+
+        # 3. 更新交易表字段
+        update_fields = []
+        if 'quantity' in data or 'price' in data:
+            # 计算新金额（保持原有逻辑）
+            new_quantity = data.get('quantity', transaction.quantity)
+            new_price = data.get('price', transaction.price)
+
+            if transaction.type == 'BUY':
+                new_amount = round(float(new_price) * float(new_quantity) + float(transaction.fee), 2)
+            else:
+                new_amount = round(float(new_price) * float(new_quantity) - float(transaction.fee), 2)
+
+            # 更新交易记录
+            transaction.quantity = new_quantity
+            transaction.price = new_price
+            update_fields.extend(['quantity', 'price'])
+
+            # 更新现金流记录
+            cashflow.amount = new_amount
+            cashflow.goods = (
+                f'股票代码：{transaction.stock_code}，'
+                f'数量：{new_quantity}，'
+                f'价格：{new_price}，'
+                f'费用：{transaction.fee}，'
+                f'金额：{new_amount}'
+            )
+            update_fields.extend(['amount', 'goods'])
+
+        # 4. 提交修改
+        db.session.commit()
+
+        return jsonify({
+            "message": "更新成功",
+            "updated_fields": update_fields,
+            "transaction": transaction.to_dict(),
+            "cashflow": cashflow.to_dict()
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/trans/<int:transaction_id>', methods=['GET'])
 def get_transaction(transaction_id):
     records = model.Transaction.query.filter_by(
