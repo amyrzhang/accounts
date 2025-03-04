@@ -179,6 +179,7 @@ from (
               , sum(amount)                as amount
          from money_track.cashflow cat
          where debit_credit = '支出'
+           and transaction_id is null
            and cashflow_id in (
              select cashflow_id
              from money_track.cashflow
@@ -205,6 +206,7 @@ from (
          select *, date_format(time, '%Y-%m') as month
          from cashflow cat
          where debit_credit = '支出'
+           and transaction_id is null
            and cashflow_id in (
              select cashflow_id
              from cashflow
