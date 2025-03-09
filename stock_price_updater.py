@@ -1,4 +1,4 @@
-# stock_price_updater.py
+# -*- coding: utf-8 -*-
 import datetime
 import logging
 import time
@@ -6,8 +6,9 @@ from sqlalchemy import func
 from apscheduler.schedulers.blocking import BlockingScheduler
 from model import db, StockPrice
 from price_getter import insert_stock_data, insert_fund_data
+from app import app  # ç¡®ä¿æ­£ç¡®å¯¼å…¥Flaskåº”ç”¨å®ä¾‹
 
-# ÅäÖÃÈÕÖ¾
+# é…ç½®æ—¥å¿—
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
@@ -20,18 +21,19 @@ logger = logging.getLogger(__name__)
 
 
 def get_latest_date(stock_code):
-    """»ñÈ¡Ö¸¶¨¹ÉÆ±µÄ×îĞÂÈÕÆÚ"""
-    latest_date = db.session.query(func.max(StockPrice.date)).filter(
-        StockPrice.stock_code == stock_code
-    ).scalar()
+    """è·å–æŒ‡å®šè‚¡ç¥¨çš„æœ€æ–°æ—¥æœŸ"""
+    with app.app_context():
+        latest_date = db.session.query(func.max(StockPrice.date)).filter(
+            StockPrice.stock_code == stock_code
+        ).scalar()
     return latest_date or datetime.date(2000, 1, 1)
 
 
 def update_stock_prices():
-    """¸üĞÂËùÓĞ¹ÉÆ±¼Û¸ñ"""
+    """æ›´æ–°æ‰€æœ‰è‚¡ç¥¨ä»·æ ¼"""
     with app.app_context():
         try:
-            # »ñÈ¡ËùÓĞÎ¨Ò»¹ÉÆ±´úÂë
+            # è·å–æ‰€æœ‰å”¯ä¸€è‚¡ç¥¨ä»£ç 
             stock_codes = [code[0] for code in db.session.query(
                 StockPrice.stock_code
             ).distinct().all()]
@@ -41,46 +43,47 @@ def update_stock_prices():
                     latest_date = get_latest_date(code)
                     start_date = (latest_date + datetime.timedelta(days=1)).strftime("%Y%m%d")
 
-                    logger.info(f"ÕıÔÚ¸üĞÂ {code} Êı¾İ£¬ÆğÊ¼ÈÕÆÚ£º{start_date}")
+                    logger.info(f"æ­£åœ¨æ›´æ–° {code} æ•°æ®ï¼Œå¼€å§‹æ—¥æœŸï¼š{start_date}")
 
-                    # ¹ÉÆ±´úÂë¸ñÊ½´¦Àí£¨¸ù¾İakshareÒªÇó£©
-                    if code.startswith(('5', '6', '9')):
-                        symbol = f"{code}.SH"
-                    else:
-                        symbol = f"{code}.SZ"
+                    # åˆ¤æ–­ä»£ç ç±»å‹ï¼ˆè‚¡ç¥¨/åŸºé‡‘ï¼‰
+                    if code.startswith('60'):  # æ²ªå¸‚ä¸»æ¿è‚¡ç¥¨ä»£ç è§„åˆ™
+                        insert_stock_data(f"{code}.SH", start_date)
+                    elif code.startswith(('000', '001', '002', '003')):  # æ·±å¸‚ä¸»æ¿è‚¡ç¥¨ä»£ç è§„åˆ™
+                        insert_stock_data(f"{code}.SZ", start_date)
+                    elif code.start_with('51'):  # æ²ªå¸‚ETFåŸºé‡‘ä»£ç è§„åˆ™
+                        insert_fund_data(code, start_date)
+                    elif code.start_with('15'): # æ·±å¸‚ETFåŸºé‡‘ä»£ç è§„åˆ™
+                        insert_fund_data(code, start_date)
 
-                    # »ñÈ¡Êı¾İ²¢²åÈë
-                    insert_stock_data(symbol)
-                    time.sleep(1)  # ·ÀÖ¹ÇëÇó¹ıÓÚÆµ·±
+                    time.sleep(1)  # é˜²æ­¢è¯·æ±‚è¿‡é¢‘
 
                 except Exception as e:
-                    logger.error(f"¸üĞÂ {code} Ê§°Ü: {str(e)}")
+                    logger.error(f"æ›´æ–° {code} å¤±è´¥: {str(e)}")
                     continue
 
-            logger.info("¹ÉÆ±¼Û¸ñ¸üĞÂÍê³É")
+            logger.info("è‚¡ç¥¨ä»·æ ¼æ›´æ–°å®Œæˆ")
 
         except Exception as e:
-            logger.error(f"¸üĞÂÈÎÎñÖ´ĞĞÊ§°Ü: {str(e)}")
+            logger.error(f"æ›´æ–°ä»»åŠ¡æ‰§è¡Œå¤±è´¥: {str(e)}")
 
 
 if __name__ == "__main__":
-    from app import app  # µ¼ÈëFlaskÓ¦ÓÃÊµÀı
-
-    # ³õÊ¼»¯µ÷¶ÈÆ÷
+    update_stock_prices()
+    # é…ç½®å®šæ—¶ä»»åŠ¡
     scheduler = BlockingScheduler(timezone="Asia/Shanghai")
 
-    # Ã¿ÌìÁè³¿1µãÖ´ĞĞ
+    # æ¯å¤©6ç‚¹æ‰§è¡Œ
     scheduler.add_job(
         update_stock_prices,
         'cron',
-        hour=1,
+        hour=6,
         minute=0,
-        misfire_grace_time=60  # ÔÊĞí60ÃëÄÚµÄ´í¹ı´¥·¢
+        misfire_grace_time=60
     )
 
     try:
-        logger.info("Æô¶¯¹ÉÆ±¼Û¸ñ¸üĞÂ¶¨Ê±ÈÎÎñ...")
+        logger.info("å¯åŠ¨è‚¡ç¥¨ä»·æ ¼è‡ªåŠ¨æ›´æ–°å®šæ—¶ä»»åŠ¡...")
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
-        logger.info("ÒÑÍ£Ö¹¶¨Ê±ÈÎÎñ")
+        logger.info("ç»ˆæ­¢å®šæ—¶ä»»åŠ¡")
