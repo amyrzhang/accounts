@@ -72,21 +72,23 @@ def update_stock_prices():
 
 
 if __name__ == "__main__":
-    # 配置定时任务
-    scheduler = BlockingScheduler(timezone="Asia/Shanghai")
+    update_stock_prices()
 
-    # 每天6点执行
-    scheduler.add_job(
-        update_stock_prices,
-        'cron',
-        hour=15,
-        minute=40,
-        misfire_grace_time=60
-    )
-
-    try:
-        logger.info("启动股票价格自动更新定时任务...")
-        scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
-        logger.info("终止定时任务")
+    # # 配置定时任务
+    # scheduler = BlockingScheduler(timezone="Asia/Shanghai")
+    #
+    # # 每天6点执行
+    # scheduler.add_job(
+    #     update_stock_prices,
+    #     'cron',
+    #     hour=15,
+    #     minute=40,
+    #     misfire_grace_time=60
+    # )
+    #
+    # try:
+    #     logger.info("启动股票价格自动更新定时任务...")
+    #     scheduler.start()
+    # except (KeyboardInterrupt, SystemExit):
+    #     scheduler.shutdown()
+    #     logger.info("终止定时任务")

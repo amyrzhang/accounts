@@ -6,6 +6,8 @@ from sqlalchemy import desc, func, extract
 from datetime import datetime
 import os
 import random
+import logging
+from apscheduler.schedulers.blocking import BlockingScheduler
 
 from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance
 import model
@@ -13,7 +15,7 @@ from config import Config
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage, generate_cashflow_id
 from price_getter import *
-
+from stock_price_updater import update_stock_prices
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -21,6 +23,18 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 CORS(app)  # 允许所有来源
 db.init_app(app)
+
+
+# 配置日志
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler('stock_updater.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 @app.route('/transactions', methods=['GET'])
@@ -466,18 +480,26 @@ def delete_transaction(transaction_id):
         return jsonify({"error": str(e)}), 500
 
 
-
-
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-
-        # stock_list = ['002991', '603345']
-        # for stock in stock_list:
-        #     insert_stock_data(stock)
-        # fund_list = ['513500', '513210', '510300']
-        # for fund in fund_list:
-        #     insert_fund_data(fund)
-        # insert_fund_data('510300')
     app.run(debug=True, host='0.0.0.0', port=18080)
+
+    # 配置定时任务
+    scheduler = BlockingScheduler(timezone="Asia/Shanghai")
+
+    # 每天 15:40 执行
+    scheduler.add_job(
+        update_stock_prices,
+        'cron',
+        hour=17,
+        minute=45,
+        misfire_grace_time=60
+    )
+
+    try:
+        logger.info("启动股票价格自动更新定时任务...")
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+        logger.info("终止定时任务")
