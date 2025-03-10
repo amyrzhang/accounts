@@ -483,7 +483,6 @@ def delete_transaction(transaction_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True, host='0.0.0.0', port=18080)
 
     # 配置定时任务
     scheduler = BlockingScheduler(timezone="Asia/Shanghai")
@@ -493,7 +492,7 @@ if __name__ == '__main__':
         update_stock_prices,
         'cron',
         hour=17,
-        minute=45,
+        minute=59,
         misfire_grace_time=60
     )
 
@@ -503,3 +502,6 @@ if __name__ == '__main__':
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
         logger.info("终止定时任务")
+
+    # 启动 Flask 应用
+    app.run(debug=True, host='0.0.0.0', port=18080)
