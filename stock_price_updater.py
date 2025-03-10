@@ -79,8 +79,8 @@ if __name__ == "__main__":
     scheduler.add_job(
         update_stock_prices,
         'cron',
-        hour=19,
-        minute=50,
+        hour=21,
+        minute=26,
         misfire_grace_time=60
     )
 
