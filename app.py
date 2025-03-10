@@ -6,8 +6,6 @@ from sqlalchemy import desc, func, extract
 from datetime import datetime
 import os
 import random
-import logging
-from apscheduler.schedulers.blocking import BlockingScheduler
 
 from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance
 import model
@@ -15,7 +13,6 @@ from config import Config
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage, generate_cashflow_id
 from price_getter import *
-from stock_price_updater import update_stock_prices
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -23,18 +20,6 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 CORS(app)  # 允许所有来源
 db.init_app(app)
-
-
-# 配置日志
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    handlers=[
-        logging.FileHandler('stock_updater.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
 
 
 @app.route('/transactions', methods=['GET'])
