@@ -5,7 +5,7 @@ import time
 from sqlalchemy import func
 from apscheduler.schedulers.blocking import BlockingScheduler
 from model import db, StockPrice
-from price_getter import insert_stock_data, insert_fund_data
+from price_getter import create_stock_data, insert_fund_data
 from app import app  # 确保正确导入Flask应用实例
 
 # 配置日志
@@ -21,12 +21,18 @@ logger = logging.getLogger(__name__)
 
 
 def get_latest_date(stock_code):
-    """获取指定股票的最新日期"""
     with app.app_context():
-        latest_date = db.session.query(func.max(StockPrice.date)).filter(
+        latest_date_str = db.session.query(func.max(StockPrice.date)).filter(
             StockPrice.stock_code == stock_code
         ).scalar()
-    return latest_date or datetime.date(2000, 1, 1)
+
+    # 统一转换为 date 对象
+    if latest_date_str:
+        if isinstance(latest_date_str, str):  # 处理字符串类型
+            return datetime.datetime.strptime(latest_date_str, "%Y-%m-%d").date()
+        return latest_date_str  # 已经是 date 类型
+    else:
+        return datetime.date(2000, 1, 1)
 
 
 def update_stock_prices():
@@ -41,19 +47,17 @@ def update_stock_prices():
             for code in stock_codes:
                 try:
                     latest_date = get_latest_date(code)
-                    start_date = (latest_date + datetime.timedelta(days=1)).strftime("%Y%m%d")
+                    start_date = (latest_date + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
                     logger.info(f"正在更新 {code} 数据，开始日期：{start_date}")
 
                     # 判断代码类型（股票/基金）
-                    if code.startswith('60'):  # 沪市主板股票代码规则
-                        insert_stock_data(f"{code}.SH", start_date)
-                    elif code.startswith(('000', '001', '002', '003')):  # 深市主板股票代码规则
-                        insert_stock_data(f"{code}.SZ", start_date)
-                    elif code.start_with('51'):  # 沪市ETF基金代码规则
-                        insert_fund_data(code, start_date)
-                    elif code.start_with('15'): # 深市ETF基金代码规则
-                        insert_fund_data(code, start_date)
+                    if code.startswith(('60', '000', '001', '002', '003')):  # 沪市&深市主板股票代码规则
+                        create_stock_data(code, start_date)
+                    # elif code.startswith('51'):  # 沪市ETF基金代码规则
+                    #     insert_fund_data(code, start_date)
+                    # elif code.startswith('15'):  # 深市ETF基金代码规则
+                    #     insert_fund_data(code, start_date)
 
                     time.sleep(1)  # 防止请求过频
 
@@ -68,7 +72,6 @@ def update_stock_prices():
 
 
 if __name__ == "__main__":
-    update_stock_prices()
     # 配置定时任务
     scheduler = BlockingScheduler(timezone="Asia/Shanghai")
 
@@ -76,8 +79,8 @@ if __name__ == "__main__":
     scheduler.add_job(
         update_stock_prices,
         'cron',
-        hour=6,
-        minute=0,
+        hour=15,
+        minute=40,
         misfire_grace_time=60
     )
 
