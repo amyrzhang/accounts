@@ -1,0 +1,14 @@
+
+
+理财产品107819A 净值解析：
+我将给你一份理财产品的净值记录，请帮我解析转换为mysql插入语句，其中stock_code 的取值均为 '107819A'。比如
+insert into stock_price (date, stock_code, close)
+values ('2025-02-20', '107819A', 1.0710)
+
+
+我将给你一份截图，请按 time, debit_credit, amount, type, goods, payment_method 解析为json，其中
+time的格式为 "%Y-%m-%d %H:%M:%S" ，借记卡4827 右边的内容表示 时分, 比如time: 2024-06-18 23:35:00
+type的值为收入
+文字部分是goods
+当交易金额为负时debit_credit为支出，否则为收入，解析后的amount为正值
+"payment_method": "民生银行储蓄卡(4827)"
