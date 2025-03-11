@@ -131,13 +131,15 @@ def insert_fund_data(fund_code, start_date=None):
     """
     获取场内ETF基金日线数据
     :param fund_code: 基金代码
+    :param start_date: 起始时间，格式：%Y%m%d
     :return: 基金数据
     """
-    start_date = start_date or "20000101"
+    start_date = start_date.replace('-', '') or "20000101"
+    end_date = datetime.now().strftime("%Y%m%d")
     df = ak.fund_etf_hist_em(
         symbol=fund_code,
         start_date=start_date,  # 使用动态start_date
-        end_date=datetime.now().strftime("%Y%m%d")
+        end_date=end_date
     )
     df.rename(columns=column_map, inplace=True)
     df.insert(1, 'stock_code', fund_code)

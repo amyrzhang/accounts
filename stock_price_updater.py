@@ -54,8 +54,8 @@ def update_stock_prices():
                     # 判断代码类型（股票/基金）
                     if code.startswith(('60', '000', '001', '002', '003')):  # 沪市&深市主板股票代码规则
                         create_stock_data(code, start_date)
-                    # elif code.startswith('51'):  # 沪市ETF基金代码规则
-                    #     insert_fund_data(code, start_date)
+                    if code.startswith('51'):  # 沪市ETF基金代码规则
+                        insert_fund_data(code, start_date)
                     # elif code.startswith('15'):  # 深市ETF基金代码规则
                     #     insert_fund_data(code, start_date)
 
