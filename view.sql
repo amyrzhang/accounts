@@ -136,7 +136,7 @@ from (
          from base_tb
      )a
 cross join total_tb t
-order by is_included desc , balance desc;
+order by is_included desc , account_type desc , balance desc;
 
 
 
