@@ -43,8 +43,8 @@ select cashflow_id,
        debit_credit,
        counterparty,
        goods,
-       amount,
        sum(case
+       amount,
                when debit_credit = '收入' then amount
                when debit_credit = '支出' then -amount
                else 0 end) over (partition by payment_method order by time) as balance,
@@ -288,7 +288,18 @@ from (
                   MAX(timestamp)                               AS last_updated
           FROM transaction
           GROUP BY stock_code
-)tb
+)tb;
+
+# 最新股价
+select *
+from (
+        select stock_code,
+       date ,
+       close,
+       row_number() over (partition by stock_code order by date desc) as rn
+        from stock_price
+     )t
+where rn = 1;
 
 
 

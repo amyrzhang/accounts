@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 from openai import OpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.agents import load_tools, initialize_agent, AgentType
 
 MOONSHOT_API_KEY = 'sk-09cudzNN2PADe2WiNqYZRoqTSHjkBPD4EhbSMDFt5UsYFzVL'
 BASE_URL = 'https://api.moonshot.cn/v1'
@@ -41,14 +43,16 @@ def get_chat_completion(content, file_path):
     return completion.choices[0].message.content
 
 
-question = """
-我将给你一份截图，请按 time, debit_credit, amount, type, goods, payment_method 解析为json，其中
-time的格式为 "%Y-%m-%d %H:%M:%S" ，借记卡4827 右边的内容表示 时分, 比如time: 2024-06-18 23:35:00
-type的值为收入
-文字部分是goods
-当交易金额为负时debit_credit为支出，否则为收入，解析后的amount为正值
-"payment_method": "民生银行储蓄卡(4827)"
-"""
-res = get_chat_completion(question, file_path='5.jpg')
-print(res)
+llm = ChatOpenAI(model='gpt-3.5-turbo', temperature=0)
+tools = load_tools(["wikipedia", "llm-math"], llm=llm)
+agent = initialize_agent(
+    tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True
+)
+
+question = """What is the square root of the population of the capital
+of the Country where the Olympic Games were held in 2016?"""
+agent.run(question)
+# res = get_chat_completion(question, file_path='5.jpg')
+# print(res)
 
