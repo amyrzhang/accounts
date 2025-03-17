@@ -28,6 +28,7 @@ class Cashflow(db.Model):
     __table_args__ = (
         PrimaryKeyConstraint('cashflow_id', 'debit_credit'),
     )
+
     def to_dict(self):
         return {
             'cashflow_id': self.cashflow_id,
@@ -43,26 +44,62 @@ class Cashflow(db.Model):
         }
 
 
-class MonthlyBalance(db.Model):
-    month = db.Column(db.String(7), nullable=False)
+class BaseBalance(db.Model):
+    __abstract__ = True  # 声明为抽象类，不会创建表
+
     balance = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
     income = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
     expenditure = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
     credit = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
     debit = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
 
+    def to_dict(self):
+        return {
+            'balance': format_currency(self.balance),
+            'income': format_currency(self.income),
+            'expenditure': format_currency(self.expenditure),
+            'credit': format_currency(self.credit),
+            'debit': format_currency(self.debit)
+        }
+
+
+class MonthlyBalance(BaseBalance):
+    month = db.Column(db.String(7), nullable=False)
+
     __table_args__ = (
         PrimaryKeyConstraint('month'),
     )
+
     def to_dict(self):
-        return {
-            'month': self.month,
-            'balance': self.balance,
-            'income': self.income,
-            'expenditure': self.expenditure,
-            'credit': self.credit,
-            'debit': self.debit
-        }
+        result = super().to_dict()
+        result['month'] = self.month
+        return result
+
+
+class VQuarterlyBalance(BaseBalance):
+    month = db.Column(db.String(7), nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint('month'),
+    )
+
+    def to_dict(self):
+        result = super().to_dict()
+        result['month'] = self.month
+        return result
+
+
+class VAnnualBalance(BaseBalance):
+    month = db.Column(db.Integer, nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint('month'),
+    )
+
+    def to_dict(self):
+        result = super().to_dict()
+        result['month'] = self.month
+        return result
 
 
 class MonthlyExpCategory(db.Model):

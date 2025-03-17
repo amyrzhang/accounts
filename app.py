@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import random
 
-from model import db, Cashflow, MonthlyBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance
+from model import db, Cashflow, MonthlyBalance, VQuarterlyBalance, VAnnualBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance
 import model
 from config import Config
 from uploader import load_to_df
@@ -186,9 +186,20 @@ def get_monthly_report():
 
 @app.route('/monthly/balance', methods=['GET'])
 def get_monthly_balance():
-    records = MonthlyBalance.query.order_by(MonthlyBalance.month.desc()).limit(15).all()
-    asc_records = sorted(records, key=lambda x: x.month)
-    return jsonify([rcd.to_dict() for rcd in asc_records])
+    records = MonthlyBalance.query.limit(15).all()
+    return jsonify([rcd.to_dict() for rcd in records])
+
+
+@app.route('/quarterly/balance', methods=['GET'])
+def get_quarterly_balance():
+    records = VQuarterlyBalance.query.all()
+    return jsonify([rcd.to_dict() for rcd in records])
+
+
+@app.route('/annual/balance', methods=['GET'])
+def get_annual_balance():
+    records = VAnnualBalance.query.all()
+    return jsonify([rcd.to_dict() for rcd in records])
 
 
 @app.route('/report/top10', methods=['GET'])
@@ -254,6 +265,7 @@ def get_account_balance():
         'credit': format_currency(r.credit),
         'debit': format_currency(r.debit)
     } for r in result])
+
 
 @app.route('/transfer', methods=['POST'])
 def create_transfer():
