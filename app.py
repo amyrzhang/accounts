@@ -37,6 +37,26 @@ def get_cashflows():
     transactions = query.order_by(desc(Cashflow.time)).all()
     return jsonify([transaction.to_dict() for transaction in transactions])
 
+
+@app.route('/transactions/group', methods=['PUT'])
+@app.route('/transactions/group/<string:group_id>', methods=['PUT'])
+def add_group_id(group_id=None):
+    data = request.get_json()
+    if isinstance(data, list):
+        return jsonify({"error": "Invalid request format. Expected a JSON object, not a list."}), 400
+
+    if group_id is None and 'group_id' in data:  # 如果 group_id 在请求参数中，则使用它
+        group_id = data['group_id']
+    elif group_id is None:
+        group_id = generate_cashflow_id()
+
+    for cashflow_id in data.get('cashflow_ids', []):  # 修改此处以确保遍历 cashflow_ids 列表
+        transaction = Cashflow.query.get_or_404(cashflow_id)
+        transaction.group_id = group_id
+        db.session.commit()
+    return jsonify({"message": "Group ID added successfully"}), 200
+
+
 def add_cashflow_records(data_list):
     created_transaction = []
 
@@ -73,6 +93,7 @@ def add_cashflow_records(data_list):
 
     db.session.commit()
     return created_transaction
+
 
 @app.route('/transactions', methods=['POST'])
 def create_cashflow():
