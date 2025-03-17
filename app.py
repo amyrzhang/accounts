@@ -13,6 +13,7 @@ from config import Config
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage, generate_cashflow_id
 from price_getter import *
+from utils import process_transaction_data
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -248,10 +249,10 @@ def get_account_balance():
     return jsonify([{
         'account_name': r.account_name,
         'account_type': r.account_type,
-        'balance': r.balance,
-        'percent': r.percent,
-        'credit': r.credit,
-        'debit': r.debit
+        'balance': format_currency(r.balance),
+        'percent': format_percentage(r.percent),
+        'credit': format_currency(r.credit),
+        'debit': format_currency(r.debit)
     } for r in result])
 
 @app.route('/transfer', methods=['POST'])
@@ -319,54 +320,60 @@ def get_transfer(cashflow_id):
 
 @app.route('/trans', methods=['POST'])
 def create_transaction():
+    """创建交易记录（保持原有数据库操作）"""
     data_list = request.get_json()
-    created_transaction = []
+    created_ids = []
+    errors = []
 
     for data in data_list:
-        payment_method = data.get('payment_method') if data.get('payment_method') else '东方财富证券(5700)'
-        if data.get('type') == 'BUY':
-            debit_credit = '支出'
-            type = "申购"
-            amount = data.get('price') * data.get('quantity') + data.get('fee')
-        else:
-            debit_credit = '收入'
-            type = "赎回"
-            amount = data.get('price') * data.get('quantity') - data.get('fee')
+        processed_data, error_response = process_transaction_data(data)
+
+        if error_response:
+            errors.append(error_response)
+            continue
 
         try:
             with db.session.begin():
                 # 更新 transaction 表
-                transaction_record = model.Transaction(
-                    stock_code=data.get('stock_code'),
-                    type=data.get('type'),
-                    timestamp=data.get('timestamp'),
-                    quantity=data.get('quantity'),
-                    price=data.get('price'),
-                    fee=data.get('fee')
+                transaction = model.Transaction(
+                    stock_code=data['stock_code'],
+                    type=data['type'],
+                    timestamp=data['timestamp'],
+                    quantity=processed_data['quantity'],
+                    price=data['price'],
+                    fee=processed_data['fee']
                 )
-                db.session.add(transaction_record)
+                db.session.add(transaction)
                 db.session.flush()  # 刷新会话以生成 transaction_id
 
                 # 更新 cashflow 表
                 cashflow_record = model.Cashflow(
                     cashflow_id=generate_cashflow_id(),
-                    transaction_id=transaction_record.transaction_id,  # 使用生成的 transaction_id
-                    type=type,
+                    transaction_id=transaction.transaction_id,
+                    type=processed_data['cashflow_type'],
                     category="投资理财",
-                    time=data.get('timestamp'),
-                    payment_method=payment_method,
-                    counterparty=data.get('stock_code'),
-                    debit_credit=debit_credit,
-                    amount=amount,
-                    goods=f'股票代码：{data.get("stock_code")}，数量：{data.get("quantity")}，价格：{data.get("price")}，费用：{data.get("fee")}，金额：{amount}'
+                    time=data['timestamp'],
+                    payment_method=processed_data['payment_method'],
+                    counterparty=data['stock_code'],
+                    debit_credit=processed_data['debit_credit'],
+                    amount=processed_data['amount'],
+                    goods=f'股票代码：{data["stock_code"]}，数量：{processed_data["quantity"]}，价格：{data["price"]}，费用：{processed_data["fee"]}，金额：{processed_data["amount"]}'
                 )
                 db.session.add(cashflow_record)
-                created_transaction.append(transaction_record.transaction_id)
+                created_ids.append(transaction.transaction_id)
+
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
 
-    return jsonify({"message": "Transaction created successfully", "transaction_id": created_transaction})
+    if errors:
+        return jsonify({
+            "message": f"部分记录处理失败，成功创建 {len(created_ids)} 条",
+            "errors": errors,
+            "created_ids": created_ids
+        }), 207
+
+    return jsonify({"message": "Transaction created successfully", "transaction_id": created_ids})
 
 
 @app.route('/trans/<int:transaction_id>', methods=['PUT'])

@@ -136,7 +136,7 @@ from (
          from base_tb
      )a
 cross join total_tb t
-order by is_included desc , balance desc;
+order by is_included desc , account_type desc , balance desc;
 
 
 
@@ -161,10 +161,35 @@ from (select date_format(time, '%Y-%m')                      as month
            , sum(if(debit_credit = '收入', amount, 0)) as credit
            , sum(if(debit_credit = '支出', amount, 0)) as debit
       from cashflow
-      where transaction_id is null
+      where transaction_id is null  -- 过滤掉证券交易记录
       group by month) tb
 order by month;
 
+
+# 季度收支
+create view v_quarterly_balance as
+select concat(year(concat(month, '-01')), '-0', quarter(concat(month, '-01'))) as month
+      , sum(balance) as balance
+      , sum(income) as income
+      , sum(expenditure) as expenditure
+      , sum(credit) as credit
+      , sum(debit) as debit
+from monthly_balance
+group by concat(year(concat(month, '-01')), '-0', quarter(concat(month, '-01')))
+order by concat(year(concat(month, '-01')), '-0', quarter(concat(month, '-01')));
+
+
+# 年度收支
+create view v_annual_balance as
+select year(concat(month, '-01')) as month
+      , sum(balance) as balance
+      , sum(income) as income
+      , sum(expenditure) as expenditure
+      , sum(credit) as credit
+      , sum(debit) as debit
+from monthly_balance
+group by year(concat(month, '-01'))
+order by year(concat(month, '-01'));
 
 
 # 月度分类别支出
