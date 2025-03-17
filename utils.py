@@ -20,7 +20,7 @@ def get_last_month():
 
 
 def format_currency(number):
-    return f"￥{number:,.2f}"
+    return f"{number:,.2f}"
 
 
 def format_percentage(number):
