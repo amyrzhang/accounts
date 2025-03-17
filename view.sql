@@ -168,15 +168,15 @@ order by month;
 
 # 季度收支
 create view v_quarterly_balance as
-select concat(year(concat(month, '-01')), '-0', quarter(concat(month, '-01'))) as month
+select concat(year(concat(month, '-01')), '-Q', quarter(concat(month, '-01'))) as month
       , sum(balance) as balance
       , sum(income) as income
       , sum(expenditure) as expenditure
       , sum(credit) as credit
       , sum(debit) as debit
 from monthly_balance
-group by concat(year(concat(month, '-01')), '-0', quarter(concat(month, '-01')))
-order by concat(year(concat(month, '-01')), '-0', quarter(concat(month, '-01')));
+group by concat(year(concat(month, '-01')), '-Q', quarter(concat(month, '-01')))
+order by concat(year(concat(month, '-01')), '-Q', quarter(concat(month, '-01')));
 
 
 # 年度收支
