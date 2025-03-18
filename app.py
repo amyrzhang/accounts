@@ -125,29 +125,85 @@ def delete_cashflow(cashflow_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/transfer', methods=['POST'])
+def create_transfer():
+    data = request.get_json()
+    time = data.get('time')
+    from_account = data['payment_method']
+    to_account = data['counterparty']
+    amount = data['amount']
+    type, goods = '自转账', '转账'
+
+    # 生成唯一 cashflow_id 和 group_id
+    cashflow_id_out = generate_cashflow_id()
+    cashflow_id_in = generate_cashflow_id()
+    group_id = generate_cashflow_id()  # 生成唯一的 group_id
+
+    try:
+        # 开启事务
+        with db.session.begin():
+            # 创建流出记录
+            out_record = Cashflow(
+                cashflow_id=cashflow_id_out,
+                group_id=group_id,
+                time=time,
+                payment_method=from_account,
+                counterparty=to_account,
+                debit_credit='支出',
+                amount=amount,
+                type=type,
+                goods=goods
+            )
+            db.session.add(out_record)
+
+            # 创建流入记录
+            in_record = Cashflow(
+                cashflow_id=cashflow_id_in,
+                group_id=group_id,
+                time=time,
+                payment_method=to_account,
+                counterparty=from_account,
+                debit_credit='收入',
+                amount=amount,
+                type=type,
+                goods=goods
+            )
+            db.session.add(in_record)
+
+        return jsonify({
+            "cashflow_id_out": cashflow_id_out,
+            "cashflow_id_in": cashflow_id_in,
+            "group_id": group_id,
+            "message": "Cashflow created successfully"
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/transfer/<string:cashflow_id>', methods=['GET'])
+def get_transfer(cashflow_id):
+    records = Cashflow.query.filter_by(
+        cashflow_id=cashflow_id
+    ).all()
+
+    if not records:
+        return jsonify({"error": "Cashflow not found"}), 404
+
+    result = [rcd.to_dict() for rcd in records]
+    return jsonify(result), 200
+
+
 @app.route('/transactions/<string:cashflow_id>', methods=['PUT'])
 def update_cashflow(cashflow_id):
     """修改一条记录"""
     data = request.get_json()
     transaction = Cashflow.query.get_or_404(cashflow_id)
 
-    # 检查并更新字段
-    if 'time' in data:
-        transaction.time = datetime.strptime(data['time'], '%Y-%m-%d %H:%M:%S')
-    if 'debit_credit' in data:
-        transaction.debit_credit = data['debit_credit']
-    if 'amount' in data:
-        transaction.amount = data['amount']
-    if 'counterparty' in data:
-        transaction.counterparty = data['counterparty']
-    if 'payment_method' in data:
-        transaction.payment_method = data['payment_method']
-    if 'category' in data:
-        transaction.category = data['category']
-    if 'status' in data:
-        transaction.status = data['status']
-    if 'source' in data:
-        transaction.source = data['source']
+    # 遍历键值对并更新字段
+    for key, value in data.items():
+        if hasattr(transaction, key):
+            setattr(transaction, key, value)
 
     db.session.commit()
     return jsonify(transaction.to_dict())
@@ -286,69 +342,6 @@ def get_account_balance():
         'credit': format_currency(r.credit),
         'debit': format_currency(r.debit)
     } for r in result])
-
-
-@app.route('/transfer', methods=['POST'])
-def create_transfer():
-    data = request.get_json()
-    time = data.get('time')
-    from_account = data['payment_method']
-    to_account = data['counterparty']
-    amount = data['amount']
-    type, goods = '自转账', '转账'
-
-    # 生成唯一 cashflow_id
-    cashflow_id = generate_cashflow_id()
-
-    try:
-        # 开启事务
-        with db.session.begin():
-            # 创建流出记录
-            out_record = Cashflow(
-                cashflow_id=cashflow_id,
-                time=time,
-                payment_method=from_account,
-                counterparty=to_account,
-                debit_credit='支出',
-                amount=amount,
-                type=type,
-                goods=goods
-            )
-            db.session.add(out_record)
-
-            # 创建流入记录
-            in_record = Cashflow(
-                cashflow_id=cashflow_id,
-                time=time,
-                payment_method=to_account,
-                counterparty=from_account,
-                debit_credit='收入',
-                amount=amount,
-                type=type,
-                goods=goods
-            )
-            db.session.add(in_record)
-
-        return jsonify({
-            "cashflow_id": cashflow_id,
-            "message": "Cashflow created successfully"
-        }), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/transfer/<string:cashflow_id>', methods=['GET'])
-def get_transfer(cashflow_id):
-    records = Cashflow.query.filter_by(
-        cashflow_id=cashflow_id
-    ).all()
-
-    if not records:
-        return jsonify({"error": "Cashflow not found"}), 404
-
-    result = [rcd.to_dict() for rcd in records]
-    return jsonify(result), 200
 
 
 @app.route('/trans', methods=['POST'])
