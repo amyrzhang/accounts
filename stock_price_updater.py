@@ -2,18 +2,25 @@
 import datetime
 import logging
 import time
+import sys
+import os
 from sqlalchemy import func
 from apscheduler.schedulers.blocking import BlockingScheduler
 from model import db, StockPrice
 from price_getter import create_stock_data, insert_fund_data
 from app import app  # 确保正确导入Flask应用实例
 
+# 确保 log 目录存在
+log_dir = 'log'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
 # 配置日志
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
     handlers=[
-        logging.FileHandler('log/stock_updater.log'),
+        logging.FileHandler(os.path.join(log_dir, 'stock_updater.log')),
         logging.StreamHandler()
     ]
 )
@@ -72,21 +79,25 @@ def update_stock_prices():
 
 
 if __name__ == "__main__":
-    # 配置定时任务
-    scheduler = BlockingScheduler(timezone="Asia/Shanghai")
+    # 手动更新，命令行参数传入 update_stock_prices
+    if len(sys.argv) > 1 and sys.argv[1] == "update_stock_prices":
+        update_stock_prices()
+    else:
+        # 配置定时任务
+        scheduler = BlockingScheduler(timezone="Asia/Shanghai")
 
-    # 每天6点执行
-    scheduler.add_job(
-        update_stock_prices,
-        'cron',
-        hour=15,
-        minute=50,
-        misfire_grace_time=60
-    )
+        # 每天6点执行
+        scheduler.add_job(
+            update_stock_prices,
+            'cron',
+            hour=15,
+            minute=50,
+            misfire_grace_time=60
+        )
 
-    try:
-        logger.info("启动股票价格自动更新定时任务...")
-        scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
-        logger.info("终止定时任务")
+        try:
+            logger.info("启动股票价格自动更新定时任务...")
+            scheduler.start()
+        except (KeyboardInterrupt, SystemExit):
+            scheduler.shutdown()
+            logger.info("终止定时任务")
