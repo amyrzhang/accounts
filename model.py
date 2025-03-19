@@ -27,7 +27,7 @@ class Cashflow(db.Model):
     group_id = db.Column(db.String(36), nullable=True)
 
     __table_args__ = (
-        PrimaryKeyConstraint('cashflow_id', 'debit_credit'),
+        PrimaryKeyConstraint('cashflow_id'),
     )
 
     def to_dict(self):
