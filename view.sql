@@ -156,7 +156,7 @@ from (select date_format(time, '%Y-%m')                      as month
                      when debit_credit = '支出' then -amount
                      else 0 end)                             as balance
            , sum(case
-                     when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职' then amount
+                     when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职|应收账款' then amount
                      else 0 end)                             as income
            , sum(if(debit_credit = '收入', amount, 0)) as credit
            , sum(if(debit_credit = '支出', amount, 0)) as debit
