@@ -2,6 +2,7 @@
 import datetime
 import logging
 import time
+import sys
 from sqlalchemy import func
 from apscheduler.schedulers.blocking import BlockingScheduler
 from model import db, StockPrice
@@ -72,21 +73,25 @@ def update_stock_prices():
 
 
 if __name__ == "__main__":
-    # 配置定时任务
-    scheduler = BlockingScheduler(timezone="Asia/Shanghai")
+    # 手动更新，命令行参数传入 update_stock_prices
+    if len(sys.argv) > 1 and sys.argv[1] == "update_stock_prices":
+        update_stock_prices()
+    else:
+        # 配置定时任务
+        scheduler = BlockingScheduler(timezone="Asia/Shanghai")
 
-    # 每天6点执行
-    scheduler.add_job(
-        update_stock_prices,
-        'cron',
-        hour=15,
-        minute=50,
-        misfire_grace_time=60
-    )
+        # 每天6点执行
+        scheduler.add_job(
+            update_stock_prices,
+            'cron',
+            hour=15,
+            minute=50,
+            misfire_grace_time=60
+        )
 
-    try:
-        logger.info("启动股票价格自动更新定时任务...")
-        scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
-        logger.info("终止定时任务")
+        try:
+            logger.info("启动股票价格自动更新定时任务...")
+            scheduler.start()
+        except (KeyboardInterrupt, SystemExit):
+            scheduler.shutdown()
+            logger.info("终止定时任务")
