@@ -24,7 +24,7 @@ class Cashflow(db.Model):
     status = db.Column(db.String(128), nullable=True)  # 支付状态
     category = db.Column(db.String(128), nullable=True)  # 类别
     source = db.Column(db.String(128), nullable=True)  # 来源
-    group_id = db.Column(db.String(36), nullable=True)
+    fk_cashflow_id = db.Column(db.String(36), nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint('cashflow_id'),
@@ -42,7 +42,7 @@ class Cashflow(db.Model):
             'payment_method': self.payment_method,
             'status': self.status,
             'source': self.source,
-            'group_id': self.group_id
+            'fk_cashflow_id': self.fk_cashflow_id
         }
 
 
