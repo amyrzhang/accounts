@@ -2,7 +2,7 @@
 # 定义API路由
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from sqlalchemy import desc, func, extract
+from sqlalchemy import desc, func, or_
 from datetime import datetime
 import os
 import random
@@ -36,22 +36,6 @@ def get_cashflows():
                     query = query.filter(getattr(Cashflow, param) == value)
     transactions = query.order_by(desc(Cashflow.time)).all()
     return jsonify([transaction.to_dict() for transaction in transactions])
-
-
-@app.route('/transactions/group', methods=['PUT'])
-def add_group_id():
-    data = request.get_json()
-
-    if 'group_id' in data:  # 如果 group_id 在请求参数中，则使用它
-        group_id = data['group_id']
-    else:
-        group_id = generate_cashflow_id()
-
-    for cashflow_id in data.get('cashflow_ids', []):  # 修改此处以确保遍历 cashflow_ids 列表
-        cashflow = Cashflow.query.filter(Cashflow.cashflow_id == cashflow_id).first()
-        cashflow.group_id = group_id
-        db.session.commit()
-    return jsonify({"message": f"Group ID {group_id} added successfully"}), 200
 
 
 def add_cashflow_records(data_list):
@@ -134,10 +118,10 @@ def create_transfer():
     amount = data['amount']
     type, goods = '自转账', '转账'
 
-    # 生成唯一 cashflow_id 和 group_id
+    # 生成唯一 cashflow_id
     cashflow_id_out = generate_cashflow_id()
     cashflow_id_in = generate_cashflow_id()
-    group_id = generate_cashflow_id()  # 生成唯一的 group_id
+    fk_cashflow_id = cashflow_id_out
 
     try:
         # 开启事务
@@ -145,7 +129,6 @@ def create_transfer():
             # 创建流出记录
             out_record = Cashflow(
                 cashflow_id=cashflow_id_out,
-                group_id=group_id,
                 time=time,
                 payment_method=from_account,
                 counterparty=to_account,
@@ -159,7 +142,7 @@ def create_transfer():
             # 创建流入记录
             in_record = Cashflow(
                 cashflow_id=cashflow_id_in,
-                group_id=group_id,
+                fk_cashflow_id=fk_cashflow_id,
                 time=time,
                 payment_method=to_account,
                 counterparty=from_account,
@@ -173,7 +156,7 @@ def create_transfer():
         return jsonify({
             "cashflow_id_out": cashflow_id_out,
             "cashflow_id_in": cashflow_id_in,
-            "group_id": group_id,
+            "group_id": fk_cashflow_id,
             "message": "Cashflow created successfully"
         }), 201
     except Exception as e:
@@ -183,8 +166,11 @@ def create_transfer():
 
 @app.route('/transfer/<string:cashflow_id>', methods=['GET'])
 def get_transfer(cashflow_id):
-    records = Cashflow.query.filter_by(
-        cashflow_id=cashflow_id
+    records = Cashflow.query.filter(
+        or_(
+            Cashflow.cashflow_id == cashflow_id,
+            Cashflow.fk_cashflow_id == cashflow_id
+        )
     ).all()
 
     if not records:
