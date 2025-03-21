@@ -199,21 +199,28 @@ select cat.month,
        cat.amount,
        (cat.amount / tot.expenditure) * 100 as percent
 from (
-         select date_format(time, '%Y-%m') as month
-              , category
-              , sum(amount)                as amount
-         from money_track.cashflow cat
-         where debit_credit = '支出'
-           and transaction_id is null
-           and cashflow_id in (
-             select cashflow_id
-             from money_track.cashflow
-             group by cashflow_id
-             having count(*) = 1
-         )
-         group by month, category
+         select
+            date_format(m.time, '%Y-%m') as month
+            , m.debit_credit
+            , sum(case when m.debit_credit='收入' then m.amount + coalesce(s.amount, 0)
+                when m.debit_credit='支出' then m.amount - coalesce(s.amount, 0) else 0 end) as amount
+            , m.category
+        from money_track.cashflow m
+        left join (
+            select fk_cashflow_id
+                , sum(case when debit_credit='收入' then amount
+                            when debit_credit='支出' then -amount else 0 end) as amount
+            from money_track.cashflow
+            where fk_cashflow_id is not null
+            group by fk_cashflow_id
+        ) s on m.cashflow_id = s.fk_cashflow_id
+        where m.fk_cashflow_id is null  -- 保留主记录
+          and m.transaction_id is null  -- 过滤掉证券交易记录
+          and m.debit_credit='支出'      -- 只统计支出消费记录
+        group by month, category
+
 ) cat
-         left join monthly_balance tot on cat.month = tot.month
+left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
 
 
@@ -228,17 +235,33 @@ select cat.cashflow_id as id
      , cat.counterparty
      , cat.goods
 from (
-         select *, date_format(time, '%Y-%m') as month
-         from cashflow cat
-         where debit_credit = '支出'
-           and transaction_id is null
-           and cashflow_id in (
-             select cashflow_id
-             from cashflow
-             group by cashflow_id
-             having count(*) = 1
-         )
-         order by month desc, amount desc
+         select
+            m.cashflow_id
+            , date_format(m.time, '%Y-%m') as month
+            , m.type
+            , m.counterparty
+            , m.goods
+            , m.debit_credit
+            , case when m.debit_credit='收入' then m.amount + coalesce(s.amount, 0)
+                when m.debit_credit='支出' then m.amount - coalesce(s.amount, 0) else 0 end as amount
+            , m.payment_method
+            , m.status
+            , m.category
+            , m.source
+            , m.transaction_id
+            , m.fk_cashflow_id
+        from money_track.cashflow m
+        left join (
+            select fk_cashflow_id
+                , sum(case when debit_credit='收入' then amount
+                            when debit_credit='支出' then -amount else 0 end) as amount
+            from money_track.cashflow
+            where fk_cashflow_id is not null
+            group by fk_cashflow_id
+        ) s on m.cashflow_id = s.fk_cashflow_id
+        where m.fk_cashflow_id is null  -- 保留主记录
+          and m.transaction_id is null  -- 过滤掉证券交易记录
+          and m.debit_credit='支出'      -- 只统计支出消费记录
 ) cat
          left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
