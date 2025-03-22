@@ -142,7 +142,6 @@ order by is_included desc , account_type desc , balance desc;
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
-drop view monthly_balance;
 create view monthly_balance as
 select month
        , balance
@@ -150,19 +149,20 @@ select month
        , tb.income - tb.balance as expenditure
        , credit
        , debit
-from (select date_format(time, '%Y-%m')                      as month
-           , sum(case
-                     when debit_credit = '收入' then amount
-                     when debit_credit = '支出' then -amount
-                     else 0 end)                             as balance
-           , sum(case
-                     when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职|应收账款' then amount
-                     else 0 end)                             as income
-           , sum(if(debit_credit = '收入', amount, 0)) as credit
-           , sum(if(debit_credit = '支出', amount, 0)) as debit
-      from cashflow
-      where transaction_id is null  -- 过滤掉证券交易记录
-      group by month) tb
+from (
+        select month
+               , sum(case
+                         when debit_credit = '收入' then amount
+                         when debit_credit = '支出' then -amount
+                         else 0 end)                             as balance
+               , sum(case
+                         when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职|应收账款' then amount
+                         else 0 end)                             as income
+               , sum(if(debit_credit = '收入', amount, 0))       as credit
+               , sum(if(debit_credit = '支出', amount, 0))       as debit
+        from v_cashflow
+        where transaction_id is null  -- 过滤掉证券交易记录
+        group by month) tb
 order by month;
 
 
@@ -222,6 +222,38 @@ from (
 ) cat
 left join monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
+
+# 统计归因收支
+create view v_cashflow as
+select
+    m.cashflow_id
+     , m.time
+     , date_format(m.time, '%Y-%m') as month
+     , concat(year(m.time), '-Q', quarter(m.time)) as quarter
+     , date_format(m.time, '%Y') as year
+     , m.type
+     , m.counterparty
+     , m.goods
+     , m.debit_credit
+     , case when m.debit_credit='收入' then m.amount + coalesce(s.amount, 0)
+            when m.debit_credit='支出' then m.amount - coalesce(s.amount, 0) else 0 end as amount
+     , m.payment_method
+     , m.status
+     , m.category
+     , m.source
+     , m.transaction_id
+     , m.fk_cashflow_id
+from money_track.cashflow m
+         left join (
+            select fk_cashflow_id
+                 , sum(case when debit_credit='收入' then amount
+                            when debit_credit='支出' then -amount else 0 end) as amount
+            from money_track.cashflow
+            where fk_cashflow_id is not null
+            group by fk_cashflow_id
+         ) s on m.cashflow_id = s.fk_cashflow_id
+where m.fk_cashflow_id is null;  -- 保留主记录
+
 
 
 # 月度支出交易累积占比
