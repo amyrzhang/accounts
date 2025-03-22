@@ -32,6 +32,18 @@ def generate_cashflow_id():
     return uuid()
 
 
+def calculate_amount_quantity(data: dict, price: float, adjusted_fee: float) -> tuple:
+    if data.get('amount'):
+        amount = round(data['amount'], 2)
+        quantity = round((amount - adjusted_fee) / price, 2)
+    elif data.get('quantity'):
+        quantity = round(data['quantity'], 2)
+        amount = round(price * quantity + adjusted_fee, 2)
+    else:
+        return None, None
+    return amount, quantity
+
+
 def process_transaction_data(data: dict) -> tuple:
     """
     处理交易数据核心逻辑（不包含数据库操作）

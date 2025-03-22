@@ -13,7 +13,7 @@ from config import Config
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage, generate_cashflow_id
 from price_getter import *
-from utils import process_transaction_data
+from utils import process_transaction_data, calculate_amount_quantity
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -404,31 +404,34 @@ def update_transaction(transaction_id):
 
         # 3. 更新交易表字段
         update_fields = []
-        if 'quantity' in data or 'price' in data:
-            # 计算新金额（保持原有逻辑）
-            new_quantity = data.get('quantity', transaction.quantity)
-            new_price = data.get('price', transaction.price)
+        type = data.get('type', transaction.type)
+        price = round(data.get('price'), 2) or transaction.price
+        fee = round(data.get('fee'), 2) or transaction.fee
+        adjusted_fee = fee if type == 'BUY' else -fee
+        amount, quantity = calculate_amount_quantity(data, price, adjusted_fee)
 
-            if transaction.type == 'BUY':
-                new_amount = round(float(new_price) * float(new_quantity) + float(transaction.fee), 2)
-            else:
-                new_amount = round(float(new_price) * float(new_quantity) - float(transaction.fee), 2)
+        # 更新交易记录
+        transaction.stock_code = data.get('stock_code', transaction.stock_code)
+        transaction.timestamp = data.get('timestamp', transaction.timestamp)
+        transaction.type = type
+        transaction.price = price
+        transaction.quantity = quantity
+        transaction.amount = amount
+        transaction.fee = data.get('fee', transaction.fee)
 
-            # 更新交易记录
-            transaction.quantity = new_quantity
-            transaction.price = new_price
-            update_fields.extend(['quantity', 'price'])
+        update_fields.extend(['quantity', 'price'])
 
-            # 更新现金流记录
-            cashflow.amount = new_amount
-            cashflow.goods = (
-                f'股票代码：{transaction.stock_code}，'
-                f'数量：{new_quantity}，'
-                f'价格：{new_price}，'
-                f'费用：{transaction.fee}，'
-                f'金额：{new_amount}'
-            )
-            update_fields.extend(['amount', 'goods'])
+        # 更新现金流记录
+        cashflow.time = data.get('timestamp', transaction.timestamp)
+        cashflow.amount = amount
+        cashflow.goods = (
+            f'股票代码：{data.get('stock_code', transaction.stock_code)}，'
+            f'数量：{quantity}，'
+            f'价格：{price}，'
+            f'费用：{fee}，'
+            f'金额：{amount}'
+        )
+        update_fields.extend(['amount', 'goods'])
 
         # 4. 提交修改
         db.session.commit()
