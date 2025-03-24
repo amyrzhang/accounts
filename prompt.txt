@@ -1,4 +1,9 @@
 
+微信零钱解析
+将流水解析为json，
+格式 [{'time': '%Y-%m-%d %H:%M:00', 'debit_credit': '收入|支出', 'amount': , 'goods': '', 'payment_method': '零钱'}] ；
+当金额符号为正时， debit_credit 为 收入，当金额为负时，debit_credit 为支出；
+取金额绝对值作为amount取值。
 
 理财产品107819A 净值解析：
 我将给你一份理财产品的净值记录，请帮我解析转换为mysql插入语句，其中stock_code 的取值均为 '107819A'。比如
