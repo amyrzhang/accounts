@@ -246,8 +246,13 @@ def get_monthly_report():
 
 @app.route('/monthly/balance', methods=['GET'])
 def get_monthly_balance():
-    # 先按月份倒序取前15条记录
-    records = MonthlyBalance.query.order_by(desc(MonthlyBalance.month)).all()
+    query = MonthlyBalance.query
+    # 先按月份筛选
+    if 'time' in request.args:
+        time_length = len(request.args['time'])
+        query = query.filter(func.substr(MonthlyBalance.month, 1, time_length) == request.args['time'])
+    # 再按月份倒序查询
+    records = query.order_by(desc(MonthlyBalance.month)).all()
     # 然后对这15条记录按月份正序排序
     records.sort(key=lambda x: x.month)
     return jsonify([rcd.to_dict() for rcd in records])
