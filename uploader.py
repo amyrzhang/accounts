@@ -13,7 +13,7 @@ def load_to_df(filepath):
     if '微信支付账单' in filepath:
         wp = WeixinProcessor(filepath)
         return wp.df.to_dict(orient='records')
-    if 'alipay_record' in filepath:
+    if 'alipay_record' in filepath or '支付宝' in filepath:
         ap = AlipayProcessor(filepath)
         return ap.df.to_dict(orient='records')
     return f'Unsupported file type: {filepath}', 400
@@ -254,5 +254,5 @@ def settle_transactions(data):
     return data
 
 if __name__ == '__main__':
-    filepath="alipay_record_20250202_225753.csv"
+    filepath="支付宝交易明细(20250401-20250430).csv"
     res = load_to_df(filepath)
