@@ -25,8 +25,15 @@ db.init_app(app)
 
 @app.route('/transactions', methods=['GET'])
 def get_cashflows():
-    """查询所有记录"""
+    """查询所有记录并支持分页"""
+    # 获取分页参数
+    page_num = int(request.args.get('pageNum', 1))
+    page_size = int(request.args.get('pageSize', 10))
+
+    # 构建查询
     query = Cashflow.query
+
+    # 应用过滤条件 月份
     if request.args:
         for param, value in request.args.items():
             if hasattr(Cashflow, param):
@@ -34,8 +41,10 @@ def get_cashflows():
                     query = query.filter(func.date_format(Cashflow.time, '%Y-%m') == value)
                 else:
                     query = query.filter(getattr(Cashflow, param) == value)
-    transactions = query.order_by(desc(Cashflow.time)).all()
-    return jsonify([transaction.to_dict() for transaction in transactions])
+
+    # 分页处理
+    paginated_query = query.order_by(desc(Cashflow.time)).limit(page_size).offset((page_num - 1) * page_size).all()
+    return jsonify([transaction.to_dict() for transaction in paginated_query])
 
 
 def add_cashflow_records(data_list):
