@@ -44,7 +44,7 @@ def get_cashflows():
 
     # 分页处理
     paginated_query = query.order_by(desc(Cashflow.time)).limit(page_size).offset((page_num - 1) * page_size).all()
-    return jsonify([transaction.to_dict() for transaction in paginated_query])
+    return jsonify({"data": [transaction.to_dict() for transaction in paginated_query], "total": query.count()})
 
 
 def add_cashflow_records(data_list):
