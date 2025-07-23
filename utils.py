@@ -66,37 +66,14 @@ def process_transaction_data(data: dict) -> tuple:
     - 失败：返回 None 和错误响应
     """
     try:
-        # 参数校验
-        required_fields = ['type', 'timestamp', 'stock_code', 'price']
-        if missing := [field for field in required_fields if not data.get(field)]:
-            return None, {"error": f"缺少必填字段: {', '.join(missing)}"}
-
-        # 设置默认值
-        fee = data.get('fee', 0.0)
-        payment_method = data.get('payment_method') or '东方财富证券(5700)'
-
         # 计算交易类型参数
         transaction_type = data['type']
         debit_credit = '支出' if transaction_type == 'BUY' else '收入'
         cashflow_type = '申购' if transaction_type == 'BUY' else '赎回'
 
-        # 金额计算逻辑
-        if data.get('amount'):
-            quantity = round((data['amount'] - (fee if transaction_type == 'BUY' else -fee)) / data['price'], 2)
-            amount = data['amount']
-        elif data.get('quantity'):
-            quantity = data['quantity']
-            amount = round(data['price'] * quantity + (fee if transaction_type == 'BUY' else -fee), 2)
-        else:
-            return None, {"error": "必须提供 quantity 或 amount"}
-
         return {
-            'payment_method': payment_method,
             'debit_credit': debit_credit,
-            'cashflow_type': cashflow_type,
-            'quantity': quantity,
-            'amount': amount,
-            'fee': fee
+            'cashflow_type': cashflow_type
         }, None
 
     except ZeroDivisionError:

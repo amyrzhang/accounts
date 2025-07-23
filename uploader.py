@@ -7,16 +7,21 @@ import os
 import json
 import chardet
 
+import logging
 
 
 def load_to_df(filepath):
-    if '微信支付账单' in filepath:
-        wp = WeixinProcessor(filepath)
-        return wp.df.to_dict(orient='records')
-    if 'alipay_record' in filepath or '支付宝' in filepath:
-        ap = AlipayProcessor(filepath)
-        return ap.df.to_dict(orient='records')
-    return f'Unsupported file type: {filepath}', 400
+    try:
+        if '微信支付账单' in filepath:
+            wp = WeixinProcessor(filepath)
+            return wp.df.to_dict(orient='records')
+        if 'alipay_record' in filepath or '支付宝' in filepath:
+            ap = AlipayProcessor(filepath)
+            return ap.df.to_dict(orient='records')
+        return f'Unsupported file type: {filepath}', 400
+    except Exception as e:
+        logging.error(f"Error processing file {filepath}: {str(e)}", exc_info=True)
+        return f'Error processing file: {filepath}', 500
 
 
 class Processor:

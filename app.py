@@ -48,6 +48,32 @@ def get_cashflows():
 
 
 def add_cashflow_records(data_list):
+    """
+    批量添加现金流记录到数据库
+    
+    该函数会检查每条记录是否已存在，如果不存在则创建新的现金流记录。
+    记录的唯一性通过时间（精确到分钟）、借贷方向、金额和支付方式来判断。
+    
+    Args:
+        data_list (list): 包含现金流数据的字典列表，每个字典应包含以下键：
+            - time (str or datetime): 交易时间
+            - debit_credit (str): 借贷方向，'收入' 或 '支出'
+            - amount (float): 金额
+            - payment_method (str): 支付方式
+            - type (str, optional): 交易类型
+            - counterparty (str, optional): 交易对手
+            - goods (str, optional): 商品或服务描述
+            - status (str, optional): 状态
+            - category (str, optional): 分类
+            - source (str, optional): 数据来源
+    
+    Returns:
+        list: 新创建的 Cashflow 对象列表
+    
+    Note:
+        - 如果记录已存在（根据时间、借贷方向、金额和支付方式匹配），则不会重复创建
+        - 所有新创建的记录会在一个数据库事务中提交
+    """
     created_transaction = []
 
     for data in data_list:
@@ -346,52 +372,73 @@ def get_account_balance():
 
 @app.route('/trans', methods=['POST'])
 def create_transaction():
-    """创建交易记录（保持原有数据库操作）"""
+    """
+    创建交易记录（保持原有数据库操作）
+    请求参数：
+    [
+        {
+            "stock_code": "股票代码，如 000001",
+            "type": "交易类型，BUY 或 SELL",
+            "timestamp": "交易时间，格式为 YYYY-MM-DD HH:MM:SS",
+            "price": "交易价格，数值类型",
+            "fee": "手续费，数值类型"
+            "amount": "金额，数值类型"
+        }
+    ]
+    """
     data_list = request.get_json()
     created_ids = []
     errors = []
 
     for data in data_list:
+        # 处理交易数据，计算数量、金额等字段
         processed_data, error_response = process_transaction_data(data)
 
+        # 如果处理过程中出现错误，则记录错误信息并跳过当前记录
         if error_response:
             errors.append(error_response)
             continue
 
         try:
+            # 开启数据库事务，确保数据一致性
             with db.session.begin():
-                # 更新 transaction 表
+                # 创建 Transaction 表记录
                 transaction = model.Transaction(
                     stock_code=data['stock_code'],
                     type=data['type'],
                     timestamp=data['timestamp'],
-                    quantity=processed_data['quantity'],
+                    quantity=data['quantity'],
                     price=data['price'],
-                    fee=processed_data['fee']
+                    fee=data['fee'],
+                    amount=data['amount']
                 )
                 db.session.add(transaction)
                 db.session.flush()  # 刷新会话以生成 transaction_id
 
-                # 更新 cashflow 表
+                # 创建 Cashflow 表记录并与 Transaction 表关联
+                payment_method = "东方财富证券(5700)"
                 cashflow_record = model.Cashflow(
                     cashflow_id=generate_cashflow_id(),
                     transaction_id=transaction.transaction_id,
                     type=processed_data['cashflow_type'],
                     category="投资理财",
                     time=data['timestamp'],
-                    payment_method=processed_data['payment_method'],
+                    payment_method=payment_method,
                     counterparty=data['stock_code'],
                     debit_credit=processed_data['debit_credit'],
-                    amount=processed_data['amount'],
-                    goods=f'股票代码：{data["stock_code"]}，数量：{processed_data["quantity"]}，价格：{data["price"]}，费用：{processed_data["fee"]}，金额：{processed_data["amount"]}'
+                    amount=data['amount']+data['fee'],
+                    goods=f'股票代码：{data["stock_code"]}，数量：{data["quantity"]}，价格：{data["price"]}，费用：{data["fee"]}，金额：{data["amount"]+data['fee']}'
                 )
                 db.session.add(cashflow_record)
+                # 记录成功创建的 transaction_id
                 created_ids.append(transaction.transaction_id)
 
         except Exception as e:
+            # 出现异常时回滚事务并返回错误信息
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
 
+    # 如果存在处理失败的记录，则返回部分成功信息和错误详情
     if errors:
         return jsonify({
             "message": f"部分记录处理失败，成功创建 {len(created_ids)} 条",
@@ -399,6 +446,7 @@ def create_transaction():
             "created_ids": created_ids
         }), 207
 
+    # 所有记录都成功创建时返回成功信息
     return jsonify({"message": "Transaction created successfully", "transaction_id": created_ids})
 
 

@@ -204,6 +204,7 @@ class Transaction(db.Model):
     timestamp = db.Column(db.DateTime, nullable=True, server_default=text('CURRENT_TIMESTAMP'))  # 交易时间
     quantity = db.Column(db.Numeric(precision=10, scale=2), nullable=False)  # 交易数量（股）
     price = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 成交单价
+    amount = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 交易金额
     fee = db.Column(db.Numeric(precision=18, scale=6), nullable=False, default=0)  # 手续费
 
     def to_dict(self):
@@ -214,6 +215,7 @@ class Transaction(db.Model):
             'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             'quantity': self.quantity,
             'price': self.price,
+            'amount': self.amount,
             'fee': self.fee
         }
 
