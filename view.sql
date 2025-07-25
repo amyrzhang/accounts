@@ -347,13 +347,12 @@ CREATE TABLE stock_price (
 #                           last_updated DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP        -- 最后更新时间
 # );
 
-# 持仓成本价
-# drop view v_position;
-create view v_position as
+# 持仓视图
+create view money_track.v_position as
 select stock_code
     , quantity
-    , cost/quantity as avg_cost
-    , round(cost/quantity, 3) as avg_cost_short
+    , round(cost / quantity, 3) as avg_cost
+    , round(cost, 2) as total_cost
     , last_updated
 from (
          SELECT stock_code,
@@ -361,13 +360,13 @@ from (
                         when type = 'BUY' then quantity
                         when type = 'SELL' then -quantity else 0 end)           AS quantity,
                 SUM(CASE
-                        WHEN type = 'BUY' THEN quantity * price + fee
-                        when type = 'SELL' then -quantity * price + fee
-                        when type = 'DIVIDEND' then -quantity * price
-                        ELSE 0 END)         AS cost,
-                  MAX(timestamp)                               AS last_updated
-          FROM transaction
-          GROUP BY stock_code
+                        WHEN type = 'BUY' THEN amount + fee
+                        when type = 'SELL' then -amount + fee
+                        when type = 'DIVIDEND' then -amount
+                        ELSE 0 END)                                             AS cost,
+                MAX(timestamp)                                                  AS last_updated
+         FROM money_track.transaction
+         GROUP BY stock_code
 )tb;
 
 # 最新股价
