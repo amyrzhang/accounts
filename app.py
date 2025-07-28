@@ -523,6 +523,41 @@ def get_transaction(transaction_id):
     return jsonify(result), 200
 
 
+@app.route('/trans', methods=['GET'])
+def get_transactions():
+    # 获取分页参数
+    page_num = int(request.args.get('pageNum', 1))
+    page_size = int(request.args.get('pageSize', 10))
+    
+    # 构建查询
+    query = model.Transaction.query
+    
+    # 应用过滤条件
+    if request.args:
+        for param, value in request.args.items():
+            if hasattr(model.Transaction, param) and param not in ['pageNum', 'pageSize', 'dateRange', 'securityCode']:
+                query = query.filter(getattr(model.Transaction, param) == value)
+        
+        # 处理时间范围参数
+        start_date, end_date = request.args.get('startDate'), request.args.get('endDate')
+        if start_date and end_date:
+            try:
+                date_begin = datetime.strptime(start_date, '%Y-%m-%d')
+                date_end = datetime.strptime(end_date, '%Y-%m-%d')
+                query = query.filter(model.Transaction.timestamp.between(date_begin, date_end))
+            except ValueError:
+                pass  # 如果日期格式不正确，忽略该过滤条件
+        
+        # 处理证券代码参数
+        security_code = request.args.get('securityCode')
+        if security_code:
+            query = query.filter(model.Transaction.stock_code.like(f'%{security_code}%'))
+    
+    # 分页处理
+    paginated_query = query.order_by(desc(model.Transaction.timestamp)).limit(page_size).offset((page_num - 1) * page_size).all()
+    return jsonify({"data": [transaction.to_dict() for transaction in paginated_query], "total": query.count()}), 200
+
+
 @app.route('/trans/<int:transaction_id>', methods=['DELETE'])
 def delete_transaction(transaction_id):
     try:

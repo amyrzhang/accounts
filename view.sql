@@ -376,7 +376,7 @@ from (
        date ,
        close,
        row_number() over (partition by stock_code order by date desc) as rn
-        from stock_price
+        from money_track.stock_price
      )t
 where rn = 1;
 
