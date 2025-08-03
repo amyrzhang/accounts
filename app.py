@@ -255,12 +255,20 @@ def upload_file():
     if file:
         file_name = file.filename
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+
         if os.path.exists(file_path):
             return f"File already exists: {file_name}", 409
-        file.save(file_path)
-        data = load_to_df(file_path)
-        created_transaction = add_cashflow_records(data)
+
+        try:
+            file.save(file_path)
+            data = load_to_df(file_path)
+            add_cashflow_records(data)
+        except Exception as e:
+            os.remove(file_path)
+            return f"Error processing file: {str(e)}", 500
+
         return f"File saved successfully as {file_name}", 200
+    return f"Invalid file as {file}", 400
 
 
 @app.route('/report', methods=['GET'])
