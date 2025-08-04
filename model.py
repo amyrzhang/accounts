@@ -219,3 +219,27 @@ class Transaction(db.Model):
             'fee': self.fee
         }
 
+
+class VCurrentAsset(db.Model):
+    __tablename__ = 'v_current_asset'
+
+    stock_code = db.Column(db.String(10), primary_key=True, nullable=False)  # 证券代码
+    quantity = db.Column(db.Numeric(precision=10, scale=2), nullable=False)  # 持仓数量
+    price = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 现价
+    avg_cost = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 成本
+    unrealized_pnl = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 持仓盈亏
+    pnl_ratio = db.Column(db.Numeric(precision=10, scale=4), nullable=False)  # 持仓盈亏比
+    position_value = db.Column(db.Numeric(precision=18, scale=2), nullable=False)  # 持仓成本
+    realized_pnl = db.Column(db.Numeric(precision=18, scale=2), nullable=True)  # 实现盈亏（可能为NULL）
+
+    def to_dict(self):
+        return {
+            'stock_code': self.stock_code,
+            'quantity': float(self.quantity) if self.quantity is not None else 0,
+            'price': float(self.price) if self.price is not None else 0,
+            'avg_cost': float(self.avg_cost) if self.avg_cost is not None else 0,
+            'unrealized_pnl': float(self.unrealized_pnl) if self.unrealized_pnl is not None else 0,
+            'pnl_ratio': float(self.pnl_ratio) if self.pnl_ratio is not None else 0,
+            'position_value': float(self.position_value) if self.position_value is not None else 0,
+            'realized_pnl': float(self.realized_pnl) if self.realized_pnl is not None else 0
+        }

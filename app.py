@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import random
 
-from model import db, Cashflow, MonthlyBalance, VQuarterlyBalance, VAnnualBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance
+from model import db, Cashflow, MonthlyBalance, VQuarterlyBalance, VAnnualBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance, VCurrentAsset
 import model
 from config import Config
 from uploader import load_to_df
@@ -589,6 +589,68 @@ def delete_transaction(transaction_id):
         return jsonify({"message": "Transaction deleted successfully"}), 200
     except Exception as e:
         db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/positions', methods=['GET'])
+def get_positions():
+    """
+    查询当前持仓信息，支持分页和排序
+    返回字段: 证券代码、持仓、现价、成本、持仓盈亏、持仓盈亏比、持仓成本、现值、仓位
+    支持的查询参数:
+    - pageNum: 页码，默认1
+    - pageSize: 每页数量，默认10
+    - sortBy: 排序字段
+    - sortOrder: 排序顺序 (asc/desc)
+    """
+    try:
+        # 获取分页参数
+        page_num = int(request.args.get('pageNum', 1))
+        page_size = int(request.args.get('pageSize', 10))
+
+        # 构建查询
+        query = VCurrentAsset.query
+
+        # 应用排序
+        sort_by = request.args.get('sortBy', 'stock_code')
+        sort_order = request.args.get('sortOrder', 'asc')
+
+        if hasattr(VCurrentAsset, sort_by):
+            if sort_order.lower() == 'desc':
+                query = query.order_by(getattr(VCurrentAsset, sort_by).desc())
+            else:
+                query = query.order_by(getattr(VCurrentAsset, sort_by).asc())
+        else:
+            query = query.order_by(VCurrentAsset.stock_code.asc())
+
+        # 分页处理
+        paginated_query = query.limit(page_size).offset((page_num - 1) * page_size).all()
+        total_count = query.count()
+
+        # 转换为字典列表
+        positions_data = [position.to_dict() for position in paginated_query]
+
+        # 计算总现值用于计算仓位
+        # 注意：这里我们需要获取所有持仓的总现值，而不是当前页的
+        all_positions = VCurrentAsset.query.all()
+        total_realized_value = sum(position.realized_pnl for position in all_positions)
+
+        # 添加仓位字段（现值/总现值）
+        for position in positions_data:
+            if total_realized_value > 0:
+                position['position_ratio'] = position['realized_pnl'] / float(total_realized_value)
+            else:
+                position['position_ratio'] = 0
+
+        return jsonify({
+            "data": positions_data,
+            "total": total_count,
+            "total_realized_value": float(total_realized_value),
+            "page_num": page_num,
+            "page_size": page_size
+        }), 200
+
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
