@@ -9,7 +9,7 @@ import chardet
 import logging
 
 # 更新导入路径
-from file_processor import WeixinProcessor, AlipayProcessor
+from parser import WeixinProcessor, AlipayProcessor
 
 def load_to_df(file_path):
     try:

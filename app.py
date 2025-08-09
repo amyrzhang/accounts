@@ -543,7 +543,7 @@ def get_transactions():
     # 应用过滤条件
     if request.args:
         for param, value in request.args.items():
-            if hasattr(model.Transaction, param) and param not in ['pageNum', 'pageSize', 'dateRange', 'securityCode']:
+            if hasattr(model.Transaction, param) and param not in ['pageNum', 'pageSize', 'dateRange', 'stock_code']:
                 query = query.filter(getattr(model.Transaction, param) == value)
         
         # 处理时间范围参数
@@ -557,9 +557,9 @@ def get_transactions():
                 pass  # 如果日期格式不正确，忽略该过滤条件
         
         # 处理证券代码参数
-        security_code = request.args.get('securityCode')
-        if security_code:
-            query = query.filter(model.Transaction.stock_code.like(f'%{security_code}%'))
+        stock_code = request.args.get('stock_code')
+        if stock_code:
+            query = query.filter(model.Transaction.stock_code.like(f'%{stock_code}%'))
     
     # 分页处理
     paginated_query = query.order_by(desc(model.Transaction.timestamp)).limit(page_size).offset((page_num - 1) * page_size).all()
