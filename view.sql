@@ -1,41 +1,3 @@
-# 收支记录表
-CREATE TABLE `transaction`
-(
-    `id`                 int            NOT NULL AUTO_INCREMENT,
-    `time`               datetime       NOT NULL,
-    `source`             varchar(128)   NOT NULL,
-    `expenditure_income` varchar(10)    NOT NULL,
-    `status`             varchar(10)             DEFAULT NULL,
-    `type`               varchar(10)             DEFAULT NULL,
-    `category`           varchar(128)   NOT NULL,
-    `counterparty`       varchar(128)            DEFAULT NULL,
-    `goods`              varchar(128)   NOT NULL,
-    `amount`             decimal(10, 2) NOT NULL,
-    payment_method         varchar(20)    NOT NULL,
-    PRIMARY KEY (`id`)
-) ENGINE = InnoDB
-  AUTO_INCREMENT = 388
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci;
-
-
-# 资产信息表
-CREATE TABLE `account_info`
-(
-    `id`           int          NOT NULL AUTO_INCREMENT,
-    `account_name` varchar(255) NOT NULL,
-    `account_type` varchar(50)  NOT NULL,
-    `is_active`    tinyint(1)   NOT NULL DEFAULT '1',
-    `is_included`  tinyint(1)   NOT NULL DEFAULT '1',
-    `create_time`  datetime              DEFAULT CURRENT_TIMESTAMP,
-    `update_time`  datetime              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
-) ENGINE = InnoDB
-  AUTO_INCREMENT = 10
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci;
-
-
 # 卡余额，用账户表关联
 create view v_account_activity as
 select cashflow_id,
@@ -142,7 +104,7 @@ order by is_included desc , account_type desc , balance desc;
 
 
 # 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
-create view monthly_balance as
+create view money_track.monthly_balance as
 select month
        , balance
        , income
@@ -150,7 +112,7 @@ select month
        , credit
        , debit
 from (
-        select month
+        select date_format(time, '%Y-%m') as month
                , sum(case
                          when debit_credit = '收入' then amount
                          when debit_credit = '支出' then -amount
@@ -160,7 +122,7 @@ from (
                          else 0 end)                             as income
                , sum(if(debit_credit = '收入', amount, 0))       as credit
                , sum(if(debit_credit = '支出', amount, 0))       as debit
-        from v_cashflow
+        from money_track.cashflow
         where transaction_id is null  -- 过滤掉证券交易记录
         group by month) tb
 order by month;
@@ -193,7 +155,8 @@ order by year(concat(month, '-01'));
 
 
 # 月度分类别支出
-create view monthly_exp_category as
+drop view money_track.monthly_exp_category;
+create view money_track.monthly_exp_category as
 select cat.month,
        cat.category,
        cat.amount,
@@ -202,25 +165,16 @@ from (
          select
             date_format(m.time, '%Y-%m') as month
             , m.debit_credit
-            , sum(case when m.debit_credit='收入' then m.amount + coalesce(s.amount, 0)
-                when m.debit_credit='支出' then m.amount - coalesce(s.amount, 0) else 0 end) as amount
+            , sum(case when m.debit_credit='收入' then m.amount
+                when m.debit_credit='支出' then m.amount  else 0 end) as amount
             , m.category
         from money_track.cashflow m
-        left join (
-            select fk_cashflow_id
-                , sum(case when debit_credit='收入' then amount
-                            when debit_credit='支出' then -amount else 0 end) as amount
-            from money_track.cashflow
-            where fk_cashflow_id is not null
-            group by fk_cashflow_id
-        ) s on m.cashflow_id = s.fk_cashflow_id
-        where m.fk_cashflow_id is null  -- 保留主记录
-          and m.transaction_id is null  -- 过滤掉证券交易记录
+        where m.transaction_id is null  -- 过滤掉证券交易记录
           and m.debit_credit='支出'      -- 只统计支出消费记录
         group by month, category
 
 ) cat
-left join monthly_balance tot on cat.month = tot.month
+left join money_track.monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
 
 # 统计归因收支
@@ -242,22 +196,19 @@ select
      , m.category
      , m.source
      , m.transaction_id
-     , m.fk_cashflow_id
 from money_track.cashflow m
          left join (
-            select fk_cashflow_id
-                 , sum(case when debit_credit='收入' then amount
+            select sum(case when debit_credit='收入' then amount
                             when debit_credit='支出' then -amount else 0 end) as amount
             from money_track.cashflow
-            where fk_cashflow_id is not null
-            group by fk_cashflow_id
          ) s on m.cashflow_id = s.fk_cashflow_id
 where m.fk_cashflow_id is null;  -- 保留主记录
 
 
 
 # 月度支出交易累积占比
-create view monthly_exp_cdf as
+# drop view money_track.monthly_exp_cdf;                               d
+create view money_track.monthly_exp_cdf as
 select cat.cashflow_id as id
      , cat.month
      , cat.category
@@ -274,28 +225,22 @@ from (
             , m.counterparty
             , m.goods
             , m.debit_credit
-            , case when m.debit_credit='收入' then m.amount + coalesce(s.amount, 0)
-                when m.debit_credit='支出' then m.amount - coalesce(s.amount, 0) else 0 end as amount
+            , case when m.debit_credit='收入' then m.amount
+                when m.debit_credit='支出' then m.amount  else 0 end as amount
             , m.payment_method
             , m.status
             , m.category
             , m.source
             , m.transaction_id
-            , m.fk_cashflow_id
         from money_track.cashflow m
-        left join (
-            select fk_cashflow_id
-                , sum(case when debit_credit='收入' then amount
-                            when debit_credit='支出' then -amount else 0 end) as amount
-            from money_track.cashflow
-            where fk_cashflow_id is not null
-            group by fk_cashflow_id
-        ) s on m.cashflow_id = s.fk_cashflow_id
-        where m.fk_cashflow_id is null  -- 保留主记录
-          and m.transaction_id is null  -- 过滤掉证券交易记录
+        where m.transaction_id is null  -- 过滤掉证券交易记录
           and m.debit_credit='支出'      -- 只统计支出消费记录
+          and m.counterparty not in (
+                select distinct account_name from money_track.account_info
+     )
 ) cat
-         left join monthly_balance tot on cat.month = tot.month
+         left join money_track.monthly_balance tot on cat.month = tot.month
+
 order by month desc, amount desc;
 
 

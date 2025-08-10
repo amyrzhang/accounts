@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 # 定义数据库模型
 from flask_sqlalchemy import SQLAlchemy
-from openpyxl.styles.builtins import percent
 from sqlalchemy import PrimaryKeyConstraint, ForeignKey, text
-import akshare as ak
 
 from utils import format_currency
 
