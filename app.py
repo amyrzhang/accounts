@@ -325,7 +325,7 @@ def get_top10_transactions():
     ).limit(10).all()
     return jsonify(
         [{
-            'amount': format_currency(rcd.amount),
+            'amount': rcd.amount,
             'goods': rcd.counterparty + ', ' + rcd.goods,
             'cdf': format_percentage(rcd.cdf)
         } for rcd in records]
