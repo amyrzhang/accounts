@@ -103,7 +103,7 @@ order by is_included desc , account_type desc , balance desc;
 
 
 
-# 月度收支，收入的枚举值：工资，劳务费，讲课费，结息，收益
+# 月度收支，收入的枚举值：工资薪金，劳务报酬
 create view money_track.monthly_balance as
 select month
        , balance
@@ -118,13 +118,15 @@ from (
                          when debit_credit = '支出' then -amount
                          else 0 end)                             as balance
                , sum(case
-                         when debit_credit = '收入' and goods rlike '工资|劳务费|讲课费|结息|收益|兼职|应收账款' then amount
+                         when debit_credit = '收入' and type in ('工资薪金', '劳务报酬')  then amount
                          else 0 end)                             as income
                , sum(if(debit_credit = '收入', amount, 0))       as credit
                , sum(if(debit_credit = '支出', amount, 0))       as debit
-        from money_track.cashflow
-        where transaction_id is null  -- 过滤掉证券交易记录
-        group by month) tb
+        from money_track.cashflow cf
+        left join money_track.account_info ai on cf.counterparty = ai.account_name
+        where cf.transaction_id is null  -- 过滤掉`证券交易`
+        and ai.account_name is null  -- 过滤掉`转账记录`
+        group by date_format(cf.time, '%Y-%m')) tb
 order by month;
 
 
