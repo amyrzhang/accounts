@@ -103,7 +103,7 @@ order by is_included desc , account_type desc , balance desc;
 
 
 
-# 月度收支，收入的枚举值：工资薪金，劳务报酬
+# 月度收支，收入的枚举值：工资薪金，劳务报酬，其他所得
 create view money_track.monthly_balance as
 select month
        , balance
@@ -118,7 +118,7 @@ from (
                          when debit_credit = '支出' then -amount
                          else 0 end)                             as balance
                , sum(case
-                         when debit_credit = '收入' and type in ('工资薪金', '劳务报酬')  then amount
+                         when debit_credit = '收入' and type in ('工资薪金', '劳务报酬', '其他所得')  then amount
                          else 0 end)                             as income
                , sum(if(debit_credit = '收入', amount, 0))       as credit
                , sum(if(debit_credit = '支出', amount, 0))       as debit
@@ -157,7 +157,6 @@ order by year(concat(month, '-01'));
 
 
 # 月度分类别支出
-drop view money_track.monthly_exp_category;
 create view money_track.monthly_exp_category as
 select cat.month,
        cat.category,
@@ -315,18 +314,6 @@ from (
          FROM money_track.transaction
          GROUP BY stock_code
 )tb;
-
-# 最新股价
-select *
-from (
-        select stock_code,
-       date ,
-       close,
-       row_number() over (partition by stock_code order by date desc) as rn
-        from money_track.stock_price
-     )t
-where rn = 1;
-
 
 
 CREATE VIEW v_current_asset AS
