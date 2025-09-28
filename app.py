@@ -6,6 +6,7 @@ from sqlalchemy import desc, func, or_
 from datetime import datetime
 import os
 import random
+import uuid
 
 from model import db, Cashflow, MonthlyBalance, VQuarterlyBalance, VAnnualBalance, MonthlyExpCategory, MonthlyExpCDF, Transaction, AccountBalance, VCurrentAsset
 import model
@@ -156,7 +157,7 @@ def create_transfer():
     # 生成唯一 cashflow_id
     cashflow_id_out = generate_cashflow_id()
     cashflow_id_in = generate_cashflow_id()
-    transfer_id = cashflow_id_out
+    transfer_id = uuid.uuid4().hex
 
     try:
         # 开启事务
