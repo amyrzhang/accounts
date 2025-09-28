@@ -22,6 +22,7 @@ class Cashflow(db.Model):
     status = db.Column(db.String(128), nullable=True)  # 支付状态
     category = db.Column(db.String(128), nullable=True)  # 类别
     source = db.Column(db.String(128), nullable=True)  # 来源
+    transfer_id = db.Column(db.String(32), nullable=True)  # 自转账ID
 
     __table_args__ = (
         PrimaryKeyConstraint('cashflow_id'),
@@ -38,7 +39,8 @@ class Cashflow(db.Model):
             'amount': self.amount,
             'payment_method': self.payment_method,
             'status': self.status,
-            'source': self.source
+            'source': self.source,
+            'transfer_id': self.transfer_id
         }
 
 

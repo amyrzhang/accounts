@@ -156,7 +156,7 @@ def create_transfer():
     # 生成唯一 cashflow_id
     cashflow_id_out = generate_cashflow_id()
     cashflow_id_in = generate_cashflow_id()
-    fk_cashflow_id = cashflow_id_out
+    transfer_id = cashflow_id_out
 
     try:
         # 开启事务
@@ -164,6 +164,7 @@ def create_transfer():
             # 创建流出记录
             out_record = Cashflow(
                 cashflow_id=cashflow_id_out,
+                transfer_id=transfer_id,
                 time=time,
                 payment_method=from_account,
                 counterparty=to_account,
@@ -177,7 +178,7 @@ def create_transfer():
             # 创建流入记录
             in_record = Cashflow(
                 cashflow_id=cashflow_id_in,
-                fk_cashflow_id=fk_cashflow_id,
+                transfer_id=transfer_id,
                 time=time,
                 payment_method=to_account,
                 counterparty=from_account,
@@ -191,7 +192,7 @@ def create_transfer():
         return jsonify({
             "cashflow_id_out": cashflow_id_out,
             "cashflow_id_in": cashflow_id_in,
-            "group_id": fk_cashflow_id,
+            "transfer_id": transfer_id,
             "message": "Cashflow created successfully"
         }), 201
     except Exception as e:
@@ -199,20 +200,35 @@ def create_transfer():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/transfer/<string:cashflow_id>', methods=['GET'])
-def get_transfer(cashflow_id):
-    records = Cashflow.query.filter(
-        or_(
-            Cashflow.cashflow_id == cashflow_id,
-            Cashflow.fk_cashflow_id == cashflow_id
-        )
-    ).all()
+@app.route('/transfer/<string:transfer_id>', methods=['GET'])
+def get_transfer(transfer_id):
+    records = Cashflow.query.filter(Cashflow.transfer_id == transfer_id).all()
 
     if not records:
         return jsonify({"error": "Cashflow not found"}), 404
 
     result = [rcd.to_dict() for rcd in records]
     return jsonify(result), 200
+
+
+@app.route('/transfer/<string:transfer_id>', methods=['DELETE'])
+def delete_transfer(transfer_id):
+    try:
+        # 查询所有 transfer_id 匹配的记录
+        records = Cashflow.query.filter(Cashflow.transfer_id == transfer_id).all()
+
+        if not records:
+            return jsonify({"error": "Cashflow not found"}), 404
+
+        # 删除所有匹配的记录
+        for record in records:
+            db.session.delete(record)
+        db.session.commit()
+
+        return jsonify("message:" f"Successfully deleted {len(records)} records"), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/transactions/<string:cashflow_id>', methods=['PUT'])
