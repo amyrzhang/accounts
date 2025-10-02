@@ -388,10 +388,10 @@ def get_account_balance():
     return jsonify([{
         'account_name': r.account_name,
         'account_type': r.account_type,
-        'balance': format_currency(r.balance),
+        'balance': r.balance,
         'percent': format_percentage(r.percent),
-        'credit': format_currency(r.credit),
-        'debit': format_currency(r.debit)
+        'credit': r.credit,
+        'debit': r.debit
     } for r in result])
 
 
@@ -452,7 +452,7 @@ def create_transaction():
                     counterparty=data['stock_code'],
                     debit_credit=processed_data['debit_credit'],
                     amount=data['amount']+data['fee'],
-                    goods=f'股票代码：{data["stock_code"]}，数量：{data["quantity"]}，价格：{data["price"]}，费用：{data["fee"]}，金额：{data["amount"]+data['fee']}'
+                    goods=f'股票代码:{data["stock_code"]},金额:{data["amount"]},价格:{data["price"]},数量:{data["quantity"]},费用:{data["fee"]}'
                 )
                 db.session.add(cashflow_record)
                 # 记录成功创建的 transaction_id
@@ -491,33 +491,29 @@ def update_transaction(transaction_id):
 
         # 3. 更新交易表字段
         update_fields = []
+        stock_code = data.get('stock_code', transaction.stock_code)
+        timestamp = data.get('timestamp', transaction.timestamp)
         type = data.get('type', transaction.type)
-        price = round(data.get('price'), 2) or transaction.price
-        fee = round(data.get('fee'), 2) or transaction.fee
-        adjusted_fee = fee if type == 'BUY' else -fee
-        amount, quantity = calculate_amount_quantity(data, price, adjusted_fee)
+        price = data.get('price', transaction.price)
+        quantity = data.get('quantity', transaction.quantity)
+        amount = data.get('amount', transaction.amount)
+        fee = data.get('fee', transaction.fee)
 
         # 更新交易记录
-        transaction.stock_code = data.get('stock_code', transaction.stock_code)
-        transaction.timestamp = data.get('timestamp', transaction.timestamp)
+        transaction.stock_code = stock_code
+        transaction.timestamp = timestamp
         transaction.type = type
         transaction.price = price
         transaction.quantity = quantity
         transaction.amount = amount
-        transaction.fee = data.get('fee', transaction.fee)
+        transaction.fee = fee
 
         update_fields.extend(['quantity', 'price'])
 
         # 更新现金流记录
-        cashflow.time = data.get('timestamp', transaction.timestamp)
+        cashflow.time = timestamp
         cashflow.amount = amount
-        cashflow.goods = (
-            f'股票代码：{data.get('stock_code', transaction.stock_code)}，'
-            f'数量：{quantity}，'
-            f'价格：{price}，'
-            f'费用：{fee}，'
-            f'金额：{amount}'
-        )
+        cashflow.goods = f'股票代码:{data["stock_code"]},金额:{data["amount"]},价格:{data["price"]},数量:{data["quantity"]},费用:{data["fee"]}'
         update_fields.extend(['amount', 'goods'])
 
         # 4. 提交修改

@@ -163,9 +163,9 @@ class AccountBalance(db.Model):
             'id': self.id,
             'account_name': self.account_name,
             'account_type': self.account_type,
-            'balance': format_currency(self.balance),
-            'debit': format_currency(self.debit),
-            'credit': format_currency(self.credit),
+            'balance': self.balance,
+            'debit': self.debit,
+            'credit': self.credit,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S'),
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S')
         }
