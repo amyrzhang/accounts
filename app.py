@@ -14,7 +14,7 @@ from config import Config
 from uploader import load_to_df
 from utils import get_last_month, format_currency, format_percentage, generate_cashflow_id
 from price_getter import *
-from utils import process_transaction_data, calculate_amount_quantity
+from utils import determine_cashflow_properties, calculate_amount_quantity
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -417,7 +417,7 @@ def create_transaction():
 
     for data in data_list:
         # 处理交易数据，计算数量、金额等字段
-        processed_data, error_response = process_transaction_data(data)
+        cashflow_properties, error_response = determine_cashflow_properties(data)
 
         # 如果处理过程中出现错误，则记录错误信息并跳过当前记录
         if error_response:
@@ -441,16 +441,15 @@ def create_transaction():
                 db.session.flush()  # 刷新会话以生成 transaction_id
 
                 # 创建 Cashflow 表记录并与 Transaction 表关联
-                payment_method = "东方财富证券(5700)"
                 cashflow_record = model.Cashflow(
                     cashflow_id=generate_cashflow_id(),
                     transaction_id=transaction.transaction_id,
-                    type=processed_data['cashflow_type'],
+                    type=cashflow_properties['cashflow_type'],
                     category="投资理财",
                     time=data['timestamp'],
-                    payment_method=payment_method,
+                    payment_method=data['payment_method'],
                     counterparty=data['stock_code'],
-                    debit_credit=processed_data['debit_credit'],
+                    debit_credit=cashflow_properties['debit_credit'],
                     amount=data['amount']+data['fee'],
                     goods=f'股票代码:{data["stock_code"]},金额:{data["amount"]},价格:{data["price"]},数量:{data["quantity"]},费用:{data["fee"]}'
                 )

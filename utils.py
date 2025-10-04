@@ -44,7 +44,7 @@ def calculate_amount_quantity(data: dict, price: float, adjusted_fee: float) -> 
     return amount, quantity
 
 
-def process_transaction_data(data: dict) -> tuple:
+def determine_cashflow_properties(data: dict) -> tuple:
     """
     处理交易数据核心逻辑（不包含数据库操作）
 
@@ -67,9 +67,14 @@ def process_transaction_data(data: dict) -> tuple:
     """
     try:
         # 计算交易类型参数
-        transaction_type = data['type']
-        debit_credit = '支出' if transaction_type == 'BUY' else '收入'
-        cashflow_type = '申购' if transaction_type == 'BUY' else '赎回'
+        if data['type'] == 'BUY':
+            debit_credit, cashflow_type = '支出', '申购'
+        elif data['type'] == 'SELL':
+            debit_credit, cashflow_type = '收入', '赎回'
+        elif data['type'] == 'DIVIDEND':
+            debit_credit, cashflow_type = '收入', '利息股息红利'
+        else:
+            return None, {"error": "Invalid transaction type"}
 
         return {
             'debit_credit': debit_credit,
