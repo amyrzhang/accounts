@@ -14,3 +14,13 @@ class Project(db.Model):
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = db.Column(db.DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'description': self.description,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }

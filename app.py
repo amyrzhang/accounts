@@ -511,6 +511,7 @@ def update_transaction(transaction_id):
 
         # 更新现金流记录
         cashflow.time = timestamp
+        cashflow.counterparty = stock_code
         cashflow.amount = amount
         cashflow.goods = f'股票代码:{data["stock_code"]},金额:{data["amount"]},价格:{data["price"]},数量:{data["quantity"]},费用:{data["fee"]}'
         update_fields.extend(['amount', 'goods'])
