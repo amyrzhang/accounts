@@ -3,7 +3,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import PrimaryKeyConstraint, ForeignKey, text
 
-from utils import format_currency
+from app.utils import format_currency
 
 # 创建 SQLAlchemy 对象
 db = SQLAlchemy()

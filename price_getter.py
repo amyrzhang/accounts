@@ -4,11 +4,8 @@ from typing import Any
 import akshare as ak
 from datetime import datetime
 import requests
-import pandas as pd
 
-from sqlalchemy import column
-
-from model import db, StockPrice
+from app.model import db, StockPrice
 
 column_map = {
     '日期': 'date',

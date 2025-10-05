@@ -6,7 +6,7 @@ import sys
 import os
 from sqlalchemy import func
 from apscheduler.schedulers.blocking import BlockingScheduler
-from model import db, StockPrice
+from app.model import db, StockPrice
 from price_getter import create_stock_data, insert_fund_data
 from app import app  # 确保正确导入Flask应用实例
 

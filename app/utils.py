@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# app/utils.py
 __author__ = "Rui Zhang"
 __email__ = "amyzhangrui@126.com"
 __version__ = "0.1.0"
@@ -9,9 +10,7 @@ __description__ = "A simple web application to analyze bank transactions"
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-import random
 from shortuuid import uuid
-
 
 def get_last_month():
     current_time = datetime.now()
@@ -87,3 +86,5 @@ def determine_cashflow_properties(data: dict) -> tuple:
         return None, {"error": f"数值计算错误: {str(e)}"}
     except Exception as e:
         return None, {"error": f"数据处理失败: {str(e)}"}
+
+

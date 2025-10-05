@@ -1,0 +1,23 @@
+# -*- coding: utf-8 -*-
+# app/__init__.py
+
+from flask import Flask
+from config import Config
+from app.extentions import db
+from app.api import api_bp
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
+
+    # 初始化数据库
+    db.init_app(app)
+
+    # 创建数据库表
+    with app.app_context():
+        db.create_all()
+
+    # 注册总API蓝图
+    app.register_blueprint(api_bp, url_prefix='/api')
+
+    return app
