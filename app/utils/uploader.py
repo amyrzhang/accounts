@@ -26,5 +26,5 @@ def load_to_df(file_path):
 
 
 if __name__ == '__main__':
-    filepath="支付宝交易明细(20250401-20250430).csv"
+    filepath= "../../支付宝交易明细(20250401-20250430).csv"
     res = load_to_df(filepath)

@@ -3,45 +3,10 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import PrimaryKeyConstraint, ForeignKey, text
 
-from app.utils import format_currency
+from app.utils.utils import format_currency
 
 # 创建 SQLAlchemy 对象
 db = SQLAlchemy()
-
-
-class Cashflow(db.Model):
-    cashflow_id = db.Column(db.String(36))
-    transaction_id = db.Column(db.Integer, ForeignKey('transaction.transaction_id'), nullable=True)
-    time = db.Column(db.DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))  # 交易时间
-    type = db.Column(db.String(10), nullable=True)  # 类型
-    counterparty = db.Column(db.String(128), nullable=True)  # 交易对方
-    goods = db.Column(db.String(128), nullable=False)  # 商品
-    debit_credit = db.Column(db.String(10), nullable=False)  # 收/支
-    amount = db.Column(db.Float, nullable=False)  # 金额
-    payment_method = db.Column(db.String(20), nullable=False)  # 支付方式
-    status = db.Column(db.String(128), nullable=True)  # 支付状态
-    category = db.Column(db.String(128), nullable=True)  # 类别
-    source = db.Column(db.String(128), nullable=True)  # 来源
-    transfer_id = db.Column(db.String(32), nullable=True)  # 自转账ID
-
-    __table_args__ = (
-        PrimaryKeyConstraint('cashflow_id'),
-    )
-
-    def to_dict(self):
-        return {
-            'cashflow_id': self.cashflow_id,
-            'time': self.time.strftime('%Y-%m-%d %H:%M:%S'),
-            'type': self.type,
-            'counterparty': self.counterparty,
-            'goods': self.goods,
-            'debit_credit': self.debit_credit,
-            'amount': self.amount,
-            'payment_method': self.payment_method,
-            'status': self.status,
-            'source': self.source,
-            'transfer_id': self.transfer_id
-        }
 
 
 class BaseBalance(db.Model):
@@ -192,30 +157,6 @@ class StockPrice(db.Model):
         db.Index('idx_date', 'date'),  # 按日期查询优化
         db.Index('idx_stock_code', 'stock_code')  # 按股票代码查询优化
     )
-
-class Transaction(db.Model):
-    __tablename__ = 'transaction'
-
-    transaction_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    stock_code = db.Column(db.String(10), nullable=False)  # 股票代码（如 002991.SZ）
-    type = db.Column(db.String(10), nullable=False)  # 交易类型
-    timestamp = db.Column(db.DateTime, nullable=True, server_default=text('CURRENT_TIMESTAMP'))  # 交易时间
-    quantity = db.Column(db.Numeric(precision=10, scale=2), nullable=False)  # 交易数量（股）
-    price = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 成交单价
-    amount = db.Column(db.Numeric(precision=18, scale=3), nullable=False)  # 交易金额
-    fee = db.Column(db.Numeric(precision=18, scale=6), nullable=False, default=0)  # 手续费
-
-    def to_dict(self):
-        return {
-            'transaction_id': self.transaction_id,
-            'stock_code': self.stock_code,
-            'type': self.type,
-            'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-            'quantity': self.quantity,
-            'price': self.price,
-            'amount': self.amount,
-            'fee': self.fee
-        }
 
 
 class VCurrentAsset(db.Model):

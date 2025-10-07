@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # app/__init__.py
+import os
 
 from flask import Flask
 from config import Config
@@ -9,6 +10,8 @@ from app.api import api_bp
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config['UPLOAD_FOLDER'] = 'uploads'
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     # 初始化数据库
     db.init_app(app)
