@@ -13,6 +13,3 @@ api = Api(asset_bp)
 # 注册资源（RESTful 接口）
 api.add_resource(AssetBalanceResource, '/balance')
 api.add_resource(PositionListResource, '/position')
-@asset_bp.route('/test')
-def test():
-    return 'test'

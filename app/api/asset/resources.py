@@ -25,10 +25,10 @@ class AssetBalanceResource(Resource):
             {
                 'account_name': row.account_name,
                 'account_type': row.account_type,
-                'balance': row.balance,
-                'percent': row.percent,
-                'credit': row.credit,
-                'debit': row.debit
+                'balance': float(row.balance) if row.balance else 0.0,
+                'percent': float(row.percent) if row.percent else 0.0,
+                'credit': float(row.credit) if row.credit else 0.0,
+                'debit': float(row.debit) if row.debit else 0.0
             }
             for row in result
         ], 200

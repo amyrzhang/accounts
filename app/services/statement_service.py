@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-from app import db
-from app.model.account_monthly_balance import AccountMonthlyBalance
-from app.model.model import Cashflow
+# app/services/statement_service.py
+from app.extentions import db
+from app.models import AccountMonthlyBalance
+from app.models import Cashflow
 from sqlalchemy import func
 
 

@@ -23,6 +23,7 @@ class AccountBalance(db.Model):
             'account_name': self.account_name,
             'account_type': self.account_type,
             'balance': float(self.balance) if self.balance is not None else 0,
+            'percent': float(self.percent) if self.percent is not None else 0,
             'debit': float(self.debit) if self.debit is not None else 0,
             'credit': float(self.credit) if self.credit is not None else 0,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S'),

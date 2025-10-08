@@ -8,9 +8,10 @@ from flask_restful import Resource
 from shortuuid import uuid
 from sqlalchemy import func, desc
 
+import app
 from app.models.cashflow import Cashflow
 from app.extentions import db
-from app.utils.uploader import load_to_df
+from app.services.import_service import ImportService
 from app.utils.utils import generate_cashflow_id
 
 
@@ -267,7 +268,7 @@ class UploadResource(Resource):
 
             try:
                 file.save(file_path)
-                data = load_to_df(file_path)
+                data = ImportService.import_cashflow(file_path)
                 add_cashflow_records(data)
             except Exception as e:
                 os.remove(file_path)
