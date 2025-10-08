@@ -11,4 +11,5 @@ from .account_monthly_balance import AccountMonthlyBalance
 __all__ = ['db', 'Cashflow', 'Transaction', 'StockPrice', 'Project',
            'MonthlyBalance', 'VQuarterlyBalance', 'VAnnualBalance',
            'MonthlyExpCategory', 'MonthlyExpCDF', 'AccountBalance', 'VCurrentAsset',
-           'AccountMonthlyBalance']
+           'AccountMonthlyBalance',
+           'BankStatementSummary']

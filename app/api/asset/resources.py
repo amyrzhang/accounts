@@ -2,10 +2,15 @@
 # app/api/asset/resources.py
 from datetime import datetime
 
+from sqlalchemy import func
 from flask import request
 from flask_restful import Resource
+from marshmallow import Schema, fields, validate, ValidationError
+from datetime import datetime
 
-from app import db
+from app.models import BankStatementSummary  # 假设 models.py 里有上面的 Model
+
+from app.extentions import db
 from app.models import VCurrentAsset, AccountBalance, AccountMonthlyBalance
 
 class AssetBalanceResource(Resource):
@@ -128,48 +133,3 @@ class AccountBalanceListResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {'error': str(e)}, 400
-
-#
-# class AccountBalanceResource(Resource):
-#     """单个账户余额资源"""
-#
-#     def get(self, id):
-#         """根据ID获取单条账户余额记录"""
-#         balance = AccountMonthlyBalance.query.get_or_404(id)
-#         return balance.to_dict(), 200
-#
-#     def put(self, id):
-#         """根据ID更新账户余额记录"""
-#         balance = AccountMonthlyBalance.query.get_or_404(id)
-#         data = request.get_json()
-#         try:
-#             if 'month_date' in data:
-#                 balance.month_date = datetime.strptime(data['month_date'], '%Y-%m-%d').date()
-#             if 'account_name' in data:
-#                 balance.account_name = data['account_name']
-#             if 'opening_balance' in data:
-#                 balance.opening_balance = data['opening_balance']
-#             if 'closing_balance' in data:
-#                 balance.closing_balance = data['closing_balance']
-#             if 'current_period_change' in data:
-#                 balance.current_period_change = data['current_period_change']
-#             if 'data_source' in data:
-#                 balance.data_source = data['data_source']
-#             if 'remark' in data:
-#                 balance.remark = data['remark']
-#             db.session.commit()
-#             return balance.to_dict(), 200
-#         except Exception as e:
-#             db.session.rollback()
-#             return {'error': str(e)}, 400
-#
-#     def delete(self, id):
-#         """根据ID删除账户余额记录"""
-#         balance = AccountMonthlyBalance.query.get_or_404(id)
-#         try:
-#             db.session.delete(balance)
-#             db.session.commit()
-#             return {'message': 'Record deleted successfully'}, 200
-#         except Exception as e:
-#             db.session.rollback()
-#             return {'error': str(e)}, 400
