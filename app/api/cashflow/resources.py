@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 
-from flask import request
+from flask import request, current_app
 from flask_restful import Resource
 from shortuuid import uuid
 from sqlalchemy import func, desc
@@ -261,7 +261,7 @@ class UploadResource(Resource):
             return {"error": "No selected file"}, 400
         if file:
             file_name = file.filename
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], file_name)
 
             if os.path.exists(file_path):
                 return {"error": f"File already exists: {file_name}"}, 409
