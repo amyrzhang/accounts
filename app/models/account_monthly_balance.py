@@ -1,7 +1,6 @@
 # models/account_monthly_balance.py
 from datetime import datetime
-# 注意：这里不直接创建 db，而是让外部传入，避免循环导入
-from app import db
+from app.extentions import db
 
 class AccountMonthlyBalance(db.Model):
     __tablename__ = 'account_monthly_balance'

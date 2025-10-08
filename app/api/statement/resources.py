@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# app/api/report/resources.py
+# app/api/statement/resources.py
 from flask import request
 from flask_restful import Resource
 from sqlalchemy import desc, func
@@ -20,11 +20,7 @@ class MonthlyReportResource(Resource):
             MonthlyBalance.expenditure,
             MonthlyBalance.balance
         ).first()
-        return {
-            'expenditure': records.expenditure,
-            'income': records.income,
-            'balance': records.balance
-        }, 200
+        return records.to_dict(), 200
 
 
 class MonthlyBalanceResource(Resource):

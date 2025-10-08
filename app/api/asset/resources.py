@@ -7,10 +7,8 @@ from flask_restful import Resource
 
 from app import db
 from app.models import VCurrentAsset, AccountBalance, AccountMonthlyBalance
-from app.utils.utils import format_percentage
 
-
-class AccountBalanceResource(Resource):
+class AssetBalanceResource(Resource):
     """账户余额资源"""
 
     def get(self):
@@ -23,14 +21,17 @@ class AccountBalanceResource(Resource):
             AccountBalance.credit,
             AccountBalance.debit
         ).all()
-        return [{
-            'account_name': r.account_name,
-            'account_type': r.account_type,
-            'balance': r.balance,
-            'percent': format_percentage(r.percent),
-            'credit': r.credit,
-            'debit': r.debit
-        } for r in result], 200
+        return [
+            {
+                'account_name': row.account_name,
+                'account_type': row.account_type,
+                'balance': row.balance,
+                'percent': row.percent,
+                'credit': row.credit,
+                'debit': row.debit
+            }
+            for row in result
+        ], 200
 
 
 class PositionListResource(Resource):
@@ -97,7 +98,7 @@ class PositionListResource(Resource):
             return {"error": str(e)}, 500
 
 
-from flask_restful import Resource
+
 
 
 class AccountBalanceListResource(Resource):

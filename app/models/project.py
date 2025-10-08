@@ -2,9 +2,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
-
-# 创建 SQLAlchemy 对象
-db = SQLAlchemy()
+from app.extentions import db
 
 
 class Project(db.Model):

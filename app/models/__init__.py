@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Processor模块初始化文件
-"""
 
-from .model import *
+from .asset import *
+from .cashflow import *
+from .statement import *
+from .transaction import *
 from .project import Project
 from .account_monthly_balance import AccountMonthlyBalance
 

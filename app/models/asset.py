@@ -1,114 +1,8 @@
 # -*- coding: utf-8 -*-
-# 定义数据库模型
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import PrimaryKeyConstraint, ForeignKey, text
+# /app/models/asset.py
+from sqlalchemy import PrimaryKeyConstraint
 
-from app.utils.utils import format_currency
-
-# 创建 SQLAlchemy 对象
-db = SQLAlchemy()
-
-
-class BaseBalance(db.Model):
-    __abstract__ = True  # 声明为抽象类，不会创建表
-
-    balance = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
-    income = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
-    expenditure = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
-    credit = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
-    debit = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
-
-    def to_dict(self):
-        return {
-            'balance': format_currency(self.balance),
-            'income': format_currency(self.income),
-            'expenditure': format_currency(self.expenditure),
-            'credit': format_currency(self.credit),
-            'debit': format_currency(self.debit)
-        }
-
-
-class MonthlyBalance(BaseBalance):
-    month = db.Column(db.String(7), nullable=False)
-
-    __table_args__ = (
-        PrimaryKeyConstraint('month'),
-    )
-
-    def to_dict(self):
-        result = super().to_dict()
-        result['month'] = self.month
-        return result
-
-
-class VQuarterlyBalance(BaseBalance):
-    month = db.Column(db.String(7), nullable=False)
-
-    __table_args__ = (
-        PrimaryKeyConstraint('month'),
-    )
-
-    def to_dict(self):
-        result = super().to_dict()
-        result['month'] = self.month
-        return result
-
-
-class VAnnualBalance(BaseBalance):
-    month = db.Column(db.Integer, nullable=False)
-
-    __table_args__ = (
-        PrimaryKeyConstraint('month'),
-    )
-
-    def to_dict(self):
-        result = super().to_dict()
-        result['month'] = self.month
-        return result
-
-
-class MonthlyExpCategory(db.Model):
-    __tablename__ = 'monthly_exp_category'
-    month = db.Column(db.String(7), nullable=False)
-    category = db.Column(db.String(128), nullable=False)
-    amount = db.Column(db.Numeric(precision=32, scale=2), nullable=False)
-    percent = db.Column(db.Numeric(precision=41, scale=6), nullable=False)
-
-    __table_args__ = (
-        PrimaryKeyConstraint('month', 'category'),
-    )
-    def to_dict(self):
-        return {
-            'month': self.month,
-            'category': self.category,
-            'amount': self.amount,
-            'percent': self.percent
-        }
-
-
-class MonthlyExpCDF(db.Model):
-    __tablename__ = 'monthly_exp_cdf'
-    id = db.Column(db.Integer, primary_key=True)
-    month = db.Column(db.String(7), nullable=False)
-    category = db.Column(db.String(128), nullable=False)
-    amount = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
-    percent = db.Column(db.Numeric(precision=19, scale=2), nullable=False)
-    cdf = db.Column(db.Numeric(precision=41, scale=2), nullable=False)
-    counterparty = db.Column(db.String(128), nullable=False)
-    goods = db.Column(db.String(128), nullable=False)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'month': self.month,
-            'category': self.category,
-            'amount': self.amount,
-            'percent': self.percent,
-            'cdf': self.cdf,
-            'counterparty': self.counterparty,
-            'goods': self.goods
-        }
-
+from app.extentions import db
 
 class AccountBalance(db.Model):
     __tablename__ = 'account_balance'
@@ -128,9 +22,9 @@ class AccountBalance(db.Model):
             'id': self.id,
             'account_name': self.account_name,
             'account_type': self.account_type,
-            'balance': self.balance,
-            'debit': self.debit,
-            'credit': self.credit,
+            'balance': float(self.balance) if self.balance is not None else 0,
+            'debit': float(self.debit) if self.debit is not None else 0,
+            'credit': float(self.credit) if self.credit is not None else 0,
             'create_time': self.create_time.strftime('%Y-%m-%d %H:%M:%S'),
             'update_time': self.update_time.strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -157,6 +51,22 @@ class StockPrice(db.Model):
         db.Index('idx_date', 'date'),  # 按日期查询优化
         db.Index('idx_stock_code', 'stock_code')  # 按股票代码查询优化
     )
+
+    def to_dict(self):
+        return {
+            'stock_code': self.stock_code,
+            'date': self.date.strftime('%Y-%m-%d'),
+            'open': float(self.open) if self.open is not None else 0,
+            'high': float(self.high) if self.high is not None else 0,
+            'low': float(self.low) if self.low is not None else 0,
+            'close': float(self.close) if self.close is not None else 0,
+            'volume': float(self.volume) if self.volume is not None else 0,
+            'amount': float(self.amount) if self.amount is not None else 0,
+            'amplitude': float(self.amplitude) if self.amplitude is not None else 0,
+            'change_percentage': float(self.change_percentage) if self.change_percentage is not None else 0,
+            'change_amount': float(self.change_amount) if self.change_amount is not None else 0,
+            'turnover': float(self.turnover) if self.turnover is not None else 0
+        }
 
 
 class VCurrentAsset(db.Model):
