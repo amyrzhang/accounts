@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 # app/api/cashflow/resources.py
 import os
+import uuid
 from datetime import datetime
-
 from flask import request, current_app
 from flask_restful import Resource
-from shortuuid import uuid
 from sqlalchemy import func, desc
 
-import app
 from app.models.cashflow import Cashflow
 from app.extentions import db
 from app.services.import_service import ImportService
@@ -153,9 +151,6 @@ def add_cashflow_records(data_list):
 
     db.session.commit()
     return created_cashflow
-
-
-from flask_restful import Resource
 
 
 class TransferResource(Resource):
