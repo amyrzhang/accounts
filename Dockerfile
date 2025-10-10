@@ -23,5 +23,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 启动命令（同时运行定时任务和Flask）
-CMD ["sh", "-c", "python stock_price_updater.py & python app.py"]
+CMD ["sh", "-c", "python stock_price_updater.py & python run.py"]
 
