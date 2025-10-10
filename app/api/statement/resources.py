@@ -20,7 +20,11 @@ class MonthlyReportResource(Resource):
             MonthlyBalance.expenditure,
             MonthlyBalance.balance
         ).first()
-        return records.to_dict(), 200
+        return {
+            'income': float(records.income) if records.income else 0.0,
+            'expenditure': float(records.expenditure) if records.expenditure else 0.0,
+            'balance': float(records.balance) if records.balance else 0.0
+        }, 200
 
 
 class MonthlyBalanceResource(Resource):
@@ -72,7 +76,7 @@ class Top10TransactionsResource(Resource):
             MonthlyExpCDF.cdf
         ).limit(10).all()
         return [{
-            'amount': rcd.amount,
+            'amount': float(rcd.amount) if rcd.amount else 0.0,
             'goods': rcd.counterparty + ', ' + rcd.goods,
             'cdf': format_percentage(rcd.cdf)
         } for rcd in records], 200
