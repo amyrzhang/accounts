@@ -9,7 +9,7 @@ from sqlalchemy import desc
 from app.extentions import db
 from app.models.cashflow import Cashflow
 from app.models.transaction import Transaction
-from app.utils.utils import determine_cashflow_properties, generate_cashflow_id
+from app.utils.utils import determine_cashflow_properties, generate_cashflow_id, calculate_cashflow_amount
 
 
 class TransactionListResource(Resource):
@@ -93,6 +93,11 @@ class TransactionListResource(Resource):
                     db.session.add(transaction)
                     db.session.flush()  # 刷新会话以生成 transaction_id
 
+                    # 使用工具函数计算现金流金额
+                    cashflow_amount = calculate_cashflow_amount(
+                        transaction.type, transaction.amount, transaction.fee
+                    )
+
                     # 创建 Cashflow 表记录并与 Transaction 表关联
                     cashflow_record = Cashflow(
                         cashflow_id=generate_cashflow_id(),
@@ -103,7 +108,7 @@ class TransactionListResource(Resource):
                         payment_method=data['payment_method'],
                         counterparty=data['stock_code'],
                         debit_credit=cashflow_properties['debit_credit'],
-                        amount=data['amount'] + data['fee'],
+                        amount=cashflow_amount,
                         goods=f'股票代码:{data["stock_code"]},金额:{data["amount"]},价格:{data["price"]},数量:{data["quantity"]},费用:{data["fee"]}'
                     )
                     db.session.add(cashflow_record)
@@ -132,7 +137,7 @@ class TransactionResource(Resource):
 
     def get(self, transaction_id):
         """根据ID获取单个交易记录"""
-        records = model.Transaction.query.filter_by(
+        records = Transaction.query.filter_by(
             transaction_id=transaction_id
         ).all()
 
@@ -164,6 +169,7 @@ class TransactionResource(Resource):
             quantity = data.get('quantity', transaction.quantity)
             amount = data.get('amount', transaction.amount)
             fee = data.get('fee', transaction.fee)
+            cashflow_amount = calculate_cashflow_amount(type, amount, fee)
 
             # 更新交易记录
             transaction.stock_code = stock_code
@@ -179,8 +185,8 @@ class TransactionResource(Resource):
             # 更新现金流记录
             cashflow.time = timestamp
             cashflow.counterparty = stock_code
-            cashflow.amount = amount
-            cashflow.goods = f'股票代码:{data["stock_code"]},金额:{data["amount"]},价格:{data["price"]},数量:{data["quantity"]},费用:{data["fee"]}'
+            cashflow.amount = cashflow_amount
+            cashflow.goods = f'股票代码:{stock_code},金额:{amount},价格:{price},数量:{quantity},费用:{fee}'
             update_fields.extend(['amount', 'goods'])
 
             # 4. 提交修改

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# app/utils.py
+# app/utils/utils.py
 __author__ = "Rui Zhang"
 __email__ = "amyzhangrui@126.com"
 __version__ = "0.1.0"
@@ -8,6 +8,7 @@ __copyright__ = "Copyright 2024 Rui Zhang"
 __status__ = "Development"
 __description__ = "A simple web application to analyze bank transactions"
 
+import decimal
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from shortuuid import uuid
@@ -88,3 +89,26 @@ def determine_cashflow_properties(data: dict) -> tuple:
         return None, {"error": f"数据处理失败: {str(e)}"}
 
 
+def calculate_cashflow_amount(
+        transaction_type: str,
+        amount: float | decimal.Decimal,
+        fee: float | decimal.Decimal,
+) -> float:
+    """
+    根据交易类型计算现金流金额。
+
+    Args:
+        transaction_type (str): 交易类型 ('BUY' 或 'SELL')。
+        amount (float | decimal.Decimal): 交易金额。
+        fee (float | decimal.Decimal): 手续费。
+
+    Returns:
+        float: 计算后的现金流金额。
+    """
+    if transaction_type.upper() == 'BUY':
+        return float(amount) + float(fee)
+    elif transaction_type.upper() == 'SELL':
+        return float(amount) - float(fee)
+    else:
+        # 处理其他类型，比如dividend
+        return float(amount)
