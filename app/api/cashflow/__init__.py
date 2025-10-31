@@ -11,6 +11,6 @@ api = Api(cashflow_bp)
 
 # 注册资源（RESTful 接口）
 api.add_resource(CashflowListResource, '')
-api.add_resource(CashflowResource, '/<int:cashflow_id>')
+api.add_resource(CashflowResource, '/<string:cashflow_id>')
 api.add_resource(TransferResource, '/transfer', '/transfer/<string:transfer_id>')
 api.add_resource(UploadResource, '/upload')
