@@ -1,3 +1,16 @@
+# 分账户净流入统计-用户对账
+select
+    date_format(time, '%Y-%m') as month_date
+    , payment_method
+    , sum(case when debit_credit='收入' then amount
+        when debit_credit='支出' then -amount
+        else 0 end ) as net_debit
+from cashflow
+where type not in ('申购', '赎回') -- 过滤证券交易记录，只考虑现金流动
+group by month_date, payment_method
+order by month_date desc, abs(net_debit) desc ;
+
+
 # 卡余额，用账户表关联
 create view v_account_activity as
 select cashflow_id,
