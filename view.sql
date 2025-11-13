@@ -310,7 +310,7 @@ CREATE TABLE stock_price (
 create view money_track.v_position as
 select stock_code
     , quantity
-    , round(cost / quantity, 3) as avg_cost
+    , if(quantity>0, round(cost/quantity, 3), 0) as avg_cost
     , round(cost, 2) as total_cost
     , last_updated
 from (
