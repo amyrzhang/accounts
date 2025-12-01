@@ -7,7 +7,7 @@ from flask_restful import Resource
 from marshmallow import Schema, fields, validate, ValidationError
 from datetime import datetime
 
-from app.models import BankStatementSummary  # 假设 models.py 里有上面的 Model
+from app.models import BankStatementSummary, MonthlyBalance
 from app.extentions import db
 
 
@@ -77,19 +77,49 @@ class BankStatementSummaryListResource(Resource):
             query = query.filter_by(account_name=account_name)
 
         items = query.all()
-        return summaries_schema.dump(items)
 
-    def post(self):
-        """新增记录"""
-        try:
-            data = summary_schema.load(request.json)
-        except ValidationError as err:
-            return {"error": err.messages}, 400
+        # 构建增强响应
+        response_data = self._build_enhanced_response(items, month_date)
+        return response_data
 
-        new_item = BankStatementSummary(**data)
-        db.session.add(new_item)
-        db.session.commit()
-        return summary_schema.dump(new_item), 201
+    def _build_enhanced_response(self, items, filter_month_date):
+        """构建增强型响应结构"""
+        # 原始数据序列化
+        serialized_items = summaries_schema.dump(items)
+
+        # 计算聚合数据
+        total_opening_balance = sum(float(item.opening_balance) for item in items)
+        total_closing_balance = sum(float(item.closing_balance) for item in items)
+        total_current_period_change = sum(float(item.current_period_change) for item in items)
+        monthly_balance = self._get_monthly_balance_data(filter_month_date)
+
+        # 构建响应结构
+        response = {
+            "records": serialized_items,
+            "aggregation": {
+                "month_date": filter_month_date,
+                "total_opening_balance": f"{total_opening_balance:.2f}",
+                "total_closing_balance": f"{total_closing_balance:.2f}",
+                "total_current_period_change": f"{total_current_period_change:.2f}",
+                "record_count": len(items)
+            },
+            "latest_monthly_balance": f"{monthly_balance:.2f}"
+        }
+
+        return response
+
+    @staticmethod
+    def _get_monthly_balance_data(filter_month_date):
+        """Get monthly balance data using the same logic as MonthlyBalanceResource"""
+        query = MonthlyBalance.query
+        # Apply the same filtering logic as in MonthlyBalanceResource
+        if filter_month_date:
+            query = query.filter(MonthlyBalance.month == filter_month_date[:7])
+
+        records = query.all()
+
+        # Convert to dict format (same as MonthlyBalanceResource)
+        return records[0].balance
 
 
 
