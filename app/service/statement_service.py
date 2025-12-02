@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-# app/services/statement_service.py
+# app/service/statement_service.py
 from app.extentions import db
-from app.models import AccountMonthlyBalance
+from app.models import AccountMonthlyBalance, MonthlyBalance
 from app.models import Cashflow
 from sqlalchemy import func
 
@@ -70,3 +70,16 @@ class StatementService:
             "adjust_note": adjust_note,
             "statement_id": statement.id  # 用于后续调整说明关联
         }
+
+    @staticmethod
+    def _get_monthly_balance_data(filter_month_date):
+        """Get monthly balance data using the same logic as MonthlyBalanceResource"""
+        query = MonthlyBalance.query
+        # Apply the same filtering logic as in MonthlyBalanceResource
+        if filter_month_date:
+            query = query.filter(MonthlyBalance.month == filter_month_date[:7])
+
+        records = query.all()
+
+        # Convert to dict format (same as MonthlyBalanceResource)
+        return records[0].balance

@@ -9,7 +9,7 @@ from datetime import datetime
 
 from app.models import BankStatementSummary, MonthlyBalance
 from app.extentions import db
-
+from app.service.cashflow_service import CashflowSummaryService
 
 # ====================
 # 数据校验 Schema（Marshmallow）
@@ -77,6 +77,8 @@ class BankStatementSummaryListResource(Resource):
             query = query.filter_by(account_name=account_name)
 
         items = query.all()
+
+        cashflow_summary = CashflowSummaryService.get_account_summary(month_date)
 
         # 构建增强响应
         response_data = self._build_enhanced_response(items, month_date)

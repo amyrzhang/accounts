@@ -1,3 +1,4 @@
+-- -*- coding: utf-8 -*-
 # 分账户净流入统计-用户对账
 select
     date_format(time, '%Y-%m') as month_date

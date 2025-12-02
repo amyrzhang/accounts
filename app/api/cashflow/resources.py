@@ -9,7 +9,7 @@ from sqlalchemy import func, desc
 
 from app.models.cashflow import Cashflow
 from app.extentions import db
-from app.services.import_service import ImportService
+from app.service.import_service import ImportService
 from app.utils.utils import generate_cashflow_id
 
 

@@ -1,14 +1,15 @@
+# -*- coding: utf-8 -*-
 # app/api/account/__init__.py
 from flask import Blueprint
 from flask_restful import Api
 from .resources import TransactionListResource, TransactionResource
 
-# ¶¨ÒåÀ¶Í¼£¬URL Ç°×º /api/account
+# å®šä¹‰è“å›¾ï¼ŒURL å‰ç¼€ /api/account
 transaction_bp = Blueprint("transaction", __name__, url_prefix='/transaction')
 
-# °ó¶¨ Flask-RESTful Api ¶ÔÏó
+# ç»‘å®š Flask-RESTful Api å¯¹è±¡
 api = Api(transaction_bp)
 
-# ×¢²á×ÊÔ´£¨RESTful ½Ó¿Ú£©
+# æ³¨å†Œèµ„æºï¼ˆRESTful æ¥å£ï¼‰
 api.add_resource(TransactionListResource, "")       # /api/transaction
 api.add_resource(TransactionResource, "/<int:transaction_id>")  # /api/transaction/<id>

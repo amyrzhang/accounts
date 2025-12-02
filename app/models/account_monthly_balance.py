@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # models/account_monthly_balance.py
 from datetime import datetime
 from app.extentions import db

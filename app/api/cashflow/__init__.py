@@ -1,15 +1,16 @@
+# -*- coding: utf-8 -*-
 # app/api/cashflow/__init__.py
 from flask import Blueprint
 from flask_restful import Api
 from .resources import CashflowListResource, CashflowResource, TransferResource, UploadResource
 
-# ¶¨ÒåÀ¶Í¼£¬URL Ç°×º /api/account
+# å®šä¹‰è“å›¾ï¼ŒURL å‰ç¼€ /api/account
 cashflow_bp = Blueprint("cashflow", __name__, url_prefix='/cashflow')
 
-# °ó¶¨ Flask-RESTful Api ¶ÔÏó
+# ç»‘å®š Flask-RESTful Api å¯¹è±¡
 api = Api(cashflow_bp)
 
-# ×¢²á×ÊÔ´£¨RESTful ½Ó¿Ú£©
+# æ³¨å†Œèµ„æºï¼ˆRESTful æ¥å£ï¼‰
 api.add_resource(CashflowListResource, '')
 api.add_resource(CashflowResource, '/<string:cashflow_id>')
 api.add_resource(TransferResource, '/transfer', '/transfer/<string:transfer_id>')
