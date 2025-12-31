@@ -30,7 +30,24 @@ select cashflow_id,
 from cashflow
 order by time desc;
 
-
+# 资产余额期间变动表
+# 期间为左开右闭
+create view bank_statement_summary as
+with base_tb as (
+    select *
+        ,  row_number() over (partition by account_name order by balance_date ) as rk
+    from asset_snapshot
+)
+select curr.id, prev.balance_date as opening_date, curr.balance_date as closing_date, curr.account_name
+     , coalesce(prev.balance, 0) as opening_balance, curr.balance as closing_balance
+     , curr.balance - coalesce(prev.balance, 0) as current_period_change
+     , prev.`year_month` as opening_year_month, curr.`year_month` as closing_year_month
+     , curr.is_verified
+     , curr.remark
+from base_tb curr
+left join base_tb prev on curr.account_name=prev.account_name and prev.rk=curr.rk-1
+# 每账户的首条记录无前记录，期间变动总记录数 = 资产账户余额记录数 - 1
+where prev.balance is not null;
 
 
 # 资产余额表更新
@@ -224,34 +241,6 @@ from (
 ) cat
 left join money_track.monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
-
-# 统计归因收支
-create view v_cashflow as
-select
-    m.cashflow_id
-     , m.time
-     , date_format(m.time, '%Y-%m') as month
-     , concat(year(m.time), '-Q', quarter(m.time)) as quarter
-     , date_format(m.time, '%Y') as year
-     , m.type
-     , m.counterparty
-     , m.goods
-     , m.debit_credit
-     , case when m.debit_credit='收入' then m.amount + coalesce(s.amount, 0)
-            when m.debit_credit='支出' then m.amount - coalesce(s.amount, 0) else 0 end as amount
-     , m.payment_method
-     , m.status
-     , m.category
-     , m.source
-     , m.transaction_id
-from money_track.cashflow m
-         left join (
-            select sum(case when debit_credit='收入' then amount
-                            when debit_credit='支出' then -amount else 0 end) as amount
-            from money_track.cashflow
-         ) s on m.cashflow_id = s.fk_cashflow_id
-where m.fk_cashflow_id is null;  -- 保留主记录
-
 
 
 # 月度支出交易累积占比
