@@ -133,36 +133,6 @@ order by is_included desc , account_type desc , balance desc;
 
 
 
-select month
-     , balance
-     , income
-     , tb.income - tb.balance as expenditure
-     , credit
-     , debit
-from (
-          select date_format(time, '%Y-%m-01')                           as month
-               , if(ai2.account_name is not null, account_name, 'other') as account_name
-               , sum(case
-                         when debit_credit = '收入' then amount
-                         when debit_credit = '支出' then -amount
-                         else 0 end)                                     as balance
-               , sum(case
-                         when debit_credit = '收入' and type in ('工资薪金', '劳务报酬', '利息股息红利', '其他所得')
-                             then amount
-                         else 0 end)                                     as income
-               , sum(if(debit_credit = '收入', amount, 0))               as credit
-               , sum(if(debit_credit = '支出', amount, 0))               as debit
-          from money_track.cashflow cf
-                   left join money_track.account_info ai2 on cf.payment_method = ai2.account_name
-
-          # 只考虑现金流，不包括证券交易
-          where cf.transaction_id is null -- 过滤掉`证券交易`
-          group by date_format(cf.time, '%Y-%m-01'),
-                   if(ai2.account_name is not null, account_name, 'other')
-      ) tb
-order by month;
-
-
 
 
 
@@ -330,6 +300,10 @@ CREATE TABLE stock_price (
 # );
 
 # 持仓视图
+select *
+      , sum(if(type='BUY', quantity, -quantity)) over (partition by stock_code order by timestamp) as position
+from transaction;
+
 create view money_track.v_position as
 select stock_code
     , quantity
