@@ -36,16 +36,46 @@ create view bank_statement_summary as
 with base_tb as (
     select *
         ,  row_number() over (partition by account_name order by balance_date ) as rk
-    from asset_snapshot
+    from money_track.asset_snapshot
+),
+    cashflow_tb as (
+    select date_format(cf.time, '%Y-%m')                                as `year_month`
+           , if(ai2.account_name is not null, account_name, 'other') as account_name
+           , sum(case
+                     when debit_credit = '收入' then amount
+                     when debit_credit = '支出' then -amount
+                     else 0 end)                                     as balance
+           , sum(case
+                     when debit_credit = '收入' and type in ('工资薪金', '劳务报酬', '利息股息红利', '其他所得')
+                         then amount
+                     else 0 end)                                     as income
+           , sum(case
+                     when debit_credit = '收入' and type in ('工资薪金', '劳务报酬', '利息股息红利', '其他所得')
+                         then amount
+                     else 0 end
+             ) - sum(case
+                         when debit_credit = '收入' then amount
+                         when debit_credit = '支出' then -amount
+                         else 0 end)                                 as expenditure
+    from money_track.cashflow cf
+    left join money_track.account_info ai2 on cf.payment_method = ai2.account_name  # 关联获取账户名称
+    # 只考虑现金流，不包括证券交易，因其只在证券账户内部流转
+    where cf.transaction_id is null
+    group by date_format(cf.time, '%Y-%m'),
+             if(ai2.account_name is not null, account_name, 'other')
 )
-select curr.id, prev.balance_date as opening_date, curr.balance_date as closing_date, curr.account_name
+select curr.id, curr.`year_month` as `year_month`
+     , prev.balance_date as opening_date, curr.balance_date as closing_date, curr.account_name
      , coalesce(prev.balance, 0) as opening_balance, curr.balance as closing_balance
      , curr.balance - coalesce(prev.balance, 0) as current_period_change
-     , prev.`year_month` as opening_year_month, curr.`year_month` as closing_year_month
+     , cf.balance, cf.income, cf.expenditure
+     , curr.balance - coalesce(prev.balance, 0) - cf.balance as variance
+     , (curr.balance - coalesce(prev.balance, 0) - cf.balance) / curr.balance as variance_rate
      , curr.is_verified
      , curr.remark
 from base_tb curr
 left join base_tb prev on curr.account_name=prev.account_name and prev.rk=curr.rk-1
+left join cashflow_tb cf on cf.`year_month` = curr.`year_month` and cf.account_name = curr.account_name
 # 每账户的首条记录无前记录，期间变动总记录数 = 资产账户余额记录数 - 1
 where prev.balance is not null;
 
