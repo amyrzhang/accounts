@@ -32,7 +32,7 @@ order by time desc;
 
 # 资产余额期间变动表
 # 期间为左开右闭
-create view bank_statement_summary as
+create view reconciliation_variance_worksheet as
 with base_tb as (
     select *
         ,  row_number() over (partition by account_name order by balance_date ) as rk
@@ -78,6 +78,39 @@ left join base_tb prev on curr.account_name=prev.account_name and prev.rk=curr.r
 left join cashflow_tb cf on cf.`year_month` = curr.`year_month` and cf.account_name = curr.account_name
 # 每账户的首条记录无前记录，期间变动总记录数 = 资产账户余额记录数 - 1
 where prev.balance is not null;
+
+
+
+# 年度对账单
+# 若是期初账户还未建立，则期初余额为空，其含义为0，需将空值补为0
+select closing_tb.id
+     , closing_tb.account_name
+     , opening_tb.balance_date as opening_date
+     , closing_tb.balance_date as closing_date
+     , opening_tb.balance as cpending_balance
+     , closing_tb.balance as closing_balance
+     , closing_tb.balance - coalesce(opening_tb.balance, 0) as current_period_change
+from (
+        select *
+        from money_track.asset_snapshot
+        where balance_date='2025-12-31'
+    )closing_tb
+left join (
+        select *
+        from (
+                select *
+                     , row_number() over (partition by account_name order by balance_date  desc) as rk
+                from money_track.asset_snapshot
+                where date_format(balance_date, '%Y') < '2025'
+        )tb
+        where rk = 1
+    )opening_tb on opening_tb.account_name = closing_tb.account_name;
+
+
+select *
+from cashflow
+where payment_method='沧州市住房公积金管理中心'
+
 
 
 # 资产余额表更新
