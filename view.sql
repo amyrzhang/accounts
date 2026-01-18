@@ -1,94 +1,53 @@
--- -*- coding: utf-8 -*-
-# ·ÖÕË»§¾»Á÷ÈëÍ³¼Æ-ÓÃ»§¶ÔÕË
-select
-    date_format(time, '%Y-%m') as month_date
-    , payment_method
-    , sum(case when debit_credit='ÊÕÈë' then amount
-        when debit_credit='Ö§³ö' then -amount
-        else 0 end ) as net_debit
-from cashflow
-where type not in ('Éê¹º', 'Êê»Ø') -- ¹ıÂËÖ¤È¯½»Ò×¼ÇÂ¼£¬Ö»¿¼ÂÇÏÖ½ğÁ÷¶¯
-group by month_date, payment_method
-order by month_date desc, abs(net_debit) desc ;
-
-
-# ¿¨Óà¶î£¬ÓÃÕË»§±í¹ØÁª
-create view v_account_activity as
-select cashflow_id,
-       time,
-       debit_credit,
-       counterparty,
-       goods,
-       sum(case
-       amount,
-               when debit_credit = 'ÊÕÈë' then amount
-               when debit_credit = 'Ö§³ö' then -amount
-               else 0 end) over (partition by payment_method order by time) as balance,
-       payment_method as account_name,
-       category,
-       type
-from cashflow
-order by time desc;
-
-# ×Ê²úÓà¶îÆÚ¼ä±ä¶¯±í
-# ÆÚ¼äÎª×ó¿ªÓÒ±Õ
-create view reconciliation_variance_worksheet as
+# èµ„äº§ä½™é¢æœŸé—´å˜åŠ¨è¡¨
+# æœŸé—´ä¸ºå·¦å¼€å³é—­
+# create view reconciliation_variance_worksheet as
 with base_tb as (
     select *
         ,  row_number() over (partition by account_name order by balance_date ) as rk
     from money_track.asset_snapshot
-),
-    cashflow_tb as (
-    select date_format(cf.time, '%Y-%m')                                as `year_month`
-           , if(ai2.account_name is not null, account_name, 'other') as account_name
-           , sum(case
-                     when debit_credit = 'ÊÕÈë' then amount
-                     when debit_credit = 'Ö§³ö' then -amount
-                     else 0 end)                                     as balance
-           , sum(case
-                     when debit_credit = 'ÊÕÈë' and type in ('¹¤×ÊĞ½½ğ', 'ÀÍÎñ±¨³ê', 'ÀûÏ¢¹ÉÏ¢ºìÀû', 'ÆäËûËùµÃ')
-                         then amount
-                     else 0 end)                                     as income
-           , sum(case
-                     when debit_credit = 'ÊÕÈë' and type in ('¹¤×ÊĞ½½ğ', 'ÀÍÎñ±¨³ê', 'ÀûÏ¢¹ÉÏ¢ºìÀû', 'ÆäËûËùµÃ')
-                         then amount
-                     else 0 end
-             ) - sum(case
-                         when debit_credit = 'ÊÕÈë' then amount
-                         when debit_credit = 'Ö§³ö' then -amount
-                         else 0 end)                                 as expenditure
-    from money_track.cashflow cf
-    left join money_track.account_info ai2 on cf.payment_method = ai2.account_name  # ¹ØÁª»ñÈ¡ÕË»§Ãû³Æ
-    # Ö»¿¼ÂÇÏÖ½ğÁ÷£¬²»°üÀ¨Ö¤È¯½»Ò×£¬ÒòÆäÖ»ÔÚÖ¤È¯ÕË»§ÄÚ²¿Á÷×ª
-    where cf.transaction_id is null
-    group by date_format(cf.time, '%Y-%m'),
-             if(ai2.account_name is not null, account_name, 'other')
 )
 select curr.id, curr.`year_month` as `year_month`
-     , prev.balance_date as opening_date, curr.balance_date as closing_date, curr.account_name
+     , curr.account_name
+     , prev.balance_date as opening_date, curr.balance_date as closing_date
      , coalesce(prev.balance, 0) as opening_balance, curr.balance as closing_balance
      , curr.balance - coalesce(prev.balance, 0) as current_period_change
-     , cf.balance, cf.income, cf.expenditure
+     , cf.balance, cf.income, cf.expense
      , curr.balance - coalesce(prev.balance, 0) - cf.balance as variance
      , (curr.balance - coalesce(prev.balance, 0) - cf.balance) / curr.balance as variance_rate
      , curr.is_verified
      , curr.remark
 from base_tb curr
 left join base_tb prev on curr.account_name=prev.account_name and prev.rk=curr.rk-1
-left join cashflow_tb cf on cf.`year_month` = curr.`year_month` and cf.account_name = curr.account_name
-# Ã¿ÕË»§µÄÊ×Ìõ¼ÇÂ¼ÎŞÇ°¼ÇÂ¼£¬ÆÚ¼ä±ä¶¯×Ü¼ÇÂ¼Êı = ×Ê²úÕË»§Óà¶î¼ÇÂ¼Êı - 1
+left join stat_monthly_income_expense cf on cf.`year_month` = curr.`year_month` and cf.account_name = curr.account_name
+# æ¯è´¦æˆ·çš„é¦–æ¡è®°å½•æ— å‰è®°å½•ï¼ŒæœŸé—´å˜åŠ¨æ€»è®°å½•æ•° = èµ„äº§è´¦æˆ·ä½™é¢è®°å½•æ•° - 1
 where prev.balance is not null;
 
 
+select *
+from cashflow
+where year(time)=2025 and payment_method rlike 'æ‹›å•†|107819A';
 
-# Äê¶È¶ÔÕËµ¥
-# ÈôÊÇÆÚ³õÕË»§»¹Î´½¨Á¢£¬ÔòÆÚ³õÓà¶îÎª¿Õ£¬Æäº¬ÒåÎª0£¬Ğè½«¿ÕÖµ²¹Îª0
+
+select *,if(debit_credit='æ”¶å…¥', amount, -amount) as net_income
+from cashflow
+where year(time)=2025 and counterparty rlike '107819A';
+
+select *
+from cashflow
+where transaction_id is not null
+
+
+
+
+# ã€å¹´åº¦èµ„äº§ä½™é¢è¡¨ã€‘
+# è‹¥æ˜¯æœŸåˆè´¦æˆ·è¿˜æœªå»ºç«‹ï¼Œåˆ™æœŸåˆä½™é¢ä¸ºç©ºï¼Œå…¶å«ä¹‰ä¸º0ï¼Œéœ€å°†ç©ºå€¼è¡¥ä¸º0
+create view annual_account_balance as
 select closing_tb.id
      , closing_tb.account_name
-     , opening_tb.balance_date as opening_date
-     , closing_tb.balance_date as closing_date
-     , opening_tb.balance as cpending_balance
-     , closing_tb.balance as closing_balance
+     , opening_tb.balance_date                              as opening_date
+     , closing_tb.balance_date                              as closing_date
+     , coalesce(opening_tb.balance, 0)                      as opending_balance
+     , closing_tb.balance                                   as closing_balance
      , closing_tb.balance - coalesce(opening_tb.balance, 0) as current_period_change
 from (
         select *
@@ -107,13 +66,9 @@ left join (
     )opening_tb on opening_tb.account_name = closing_tb.account_name;
 
 
-select *
-from cashflow
-where payment_method='²×ÖİÊĞ×¡·¿¹«»ı½ğ¹ÜÀíÖĞĞÄ'
 
 
-
-# ×Ê²úÓà¶î±í¸üĞÂ
+# èµ„äº§ä½™é¢è¡¨æ›´æ–°
 # drop view account_balance;
 create view account_balance as
 with cash_tb as (
@@ -131,11 +86,11 @@ with cash_tb as (
                              , min(time)                                       as create_time
                              , max(time)                                       as update_time
                              , sum(case
-                                       when debit_credit = 'ÊÕÈë' then amount
-                                       when debit_credit = 'Ö§³ö' then -amount
+                                       when debit_credit = 'æ”¶å…¥' then amount
+                                       when debit_credit = 'æ”¯å‡º' then -amount
                                        else 0 end)                             as balance
-                             , sum(if(debit_credit = 'ÊÕÈë', amount, 0)) as income
-                             , sum(if(debit_credit = 'Ö§³ö', amount, 0)) as expenditure
+                             , sum(if(debit_credit = 'æ”¶å…¥', amount, 0)) as income
+                             , sum(if(debit_credit = 'æ”¯å‡º', amount, 0)) as expenditure
                         from cashflow
                         group by payment_method) t
                        on a.account_name = t.payment_method
@@ -196,11 +151,44 @@ order by is_included desc , account_type desc , balance desc;
 
 
 
+# ã€æœˆåº¦ç§‘ç›®ä½™é¢è¡¨ã€‘ä»¥ æœˆ&è´¦æˆ· ç²’åº¦
+# æ³¨æ„ï¼šåªæœ‰å½“æœŸæœ‰å‡­è¯çš„ç§‘ç›®ä½™é¢æ‰ä¼šè¢«è®¡ç®—
+create view stat_monthly_income_expense as
+with cashflow_tb as (select date_format(cf.time, '%Y-%m')                                                       as `year_month`
+                          , if(ai.account_name is not null, account_name, 'other')                              as account_name
+                          , sum(case
+                                    when debit_credit = 'æ”¶å…¥' then amount
+                                    when debit_credit = 'æ”¯å‡º' then -amount
+                                    else 0 end)                                                                 as balance
+                          , sum(IF(
+            debit_credit = 'æ”¶å…¥' and type in ('å·¥èµ„è–ªé‡‘', 'åŠ³åŠ¡æŠ¥é…¬', 'åˆ©æ¯', 'è¯åˆ¸è´¦æˆ·æµ®ç›ˆ', 'å…¶ä»–æ‰€å¾—'), amount,
+            0))                                                                                                 as income
+                          , sum(IF(
+            debit_credit = 'æ”¶å…¥' and type in ('å·¥èµ„è–ªé‡‘', 'åŠ³åŠ¡æŠ¥é…¬', 'åˆ©æ¯', 'è¯åˆ¸è´¦æˆ·æµ®ç›ˆ', 'å…¶ä»–æ‰€å¾—'), amount, 0)
+                            ) - sum(case
+                                        when debit_credit = 'æ”¶å…¥' then amount
+                                        when debit_credit = 'æ”¯å‡º' then -amount
+                                        else 0 end)                                                             as expense
+                     from money_track.cashflow cf
+                              left join money_track.account_info ai on cf.payment_method = ai.account_name # å…³è”è·å–è´¦æˆ·åç§°
+
+                     where cf.transaction_id is null # åªè€ƒè™‘ç°é‡‘æµï¼Œä¸åŒ…æ‹¬è¯åˆ¸äº¤æ˜“ï¼Œå› å…¶åªåœ¨è¯åˆ¸è´¦æˆ·å†…éƒ¨æµè½¬
+                     group by date_format(cf.time, '%Y-%m'),
+                              if(ai.account_name is not null, account_name, 'other'))
+select `year_month`
+     , account_name
+     , balance
+     , sum(balance) over (partition by substr(`year_month`, 1, 4), account_name order by `year_month`) as ytd_balance
+     , income
+     , sum(income) over (partition by substr(`year_month`, 1, 4), account_name order by `year_month`)  as ytd_income
+     , expense
+     , sum(expense) over (partition by substr(`year_month`, 1, 4), account_name order by `year_month`) as ytd_expense
+from cashflow_tb
+order by `year_month`, account_name;
 
 
 
-
-# ÔÂ¶ÈÊÕÖ§£¬ÊÕÈëµÄÃ¶¾ÙÖµ£º¹¤×ÊĞ½½ğ£¬ÀÍÎñ±¨³ê£¬ÆäËûËùµÃ
+# æœˆåº¦æ”¶æ”¯ï¼Œæ”¶å…¥çš„æšä¸¾å€¼ï¼šå·¥èµ„è–ªé‡‘ï¼ŒåŠ³åŠ¡æŠ¥é…¬ï¼Œå…¶ä»–æ‰€å¾—
 create view money_track.monthly_balance as
 select month
        , balance
@@ -211,49 +199,23 @@ select month
 from (
         select date_format(time, '%Y-%m') as month
                , sum(case
-                         when debit_credit = 'ÊÕÈë' then amount
-                         when debit_credit = 'Ö§³ö' then -amount
+                         when debit_credit = 'æ”¶å…¥' then amount
+                         when debit_credit = 'æ”¯å‡º' then -amount
                          else 0 end)                             as balance
                , sum(case
-                         when debit_credit = 'ÊÕÈë' and type in ('¹¤×ÊĞ½½ğ', 'ÀÍÎñ±¨³ê', 'ÆäËûËùµÃ')  then amount
+                         when debit_credit = 'æ”¶å…¥' and type in ('å·¥èµ„è–ªé‡‘', 'åŠ³åŠ¡æŠ¥é…¬', 'å…¶ä»–æ‰€å¾—')  then amount
                          else 0 end)                             as income
-               , sum(if(debit_credit = 'ÊÕÈë', amount, 0))       as credit
-               , sum(if(debit_credit = 'Ö§³ö', amount, 0))       as debit
+               , sum(if(debit_credit = 'æ”¶å…¥', amount, 0))       as credit
+               , sum(if(debit_credit = 'æ”¯å‡º', amount, 0))       as debit
         from money_track.cashflow cf
         left join money_track.account_info ai on cf.counterparty = ai.account_name
-        where cf.transaction_id is null  -- ¹ıÂËµô`Ö¤È¯½»Ò×`
-        and ai.account_name is null  -- ¹ıÂËµô`×ªÕË¼ÇÂ¼`
+        where cf.transaction_id is null  -- è¿‡æ»¤æ‰`è¯åˆ¸äº¤æ˜“`
+        and ai.account_name is null  -- è¿‡æ»¤æ‰`è½¬è´¦è®°å½•`
         group by date_format(cf.time, '%Y-%m')) tb
 order by month;
 
 
-# ¼¾¶ÈÊÕÖ§
-create view v_quarterly_balance as
-select concat(year(concat(month, '-01')), '-Q', quarter(concat(month, '-01'))) as month
-      , sum(balance) as balance
-      , sum(income) as income
-      , sum(expenditure) as expenditure
-      , sum(credit) as credit
-      , sum(debit) as debit
-from monthly_balance
-group by concat(year(concat(month, '-01')), '-Q', quarter(concat(month, '-01')))
-order by concat(year(concat(month, '-01')), '-Q', quarter(concat(month, '-01')));
-
-
-# Äê¶ÈÊÕÖ§
-create view v_annual_balance as
-select year(concat(month, '-01')) as month
-      , sum(balance) as balance
-      , sum(income) as income
-      , sum(expenditure) as expenditure
-      , sum(credit) as credit
-      , sum(debit) as debit
-from monthly_balance
-group by year(concat(month, '-01'))
-order by year(concat(month, '-01'));
-
-
-# ÔÂ¶È·ÖÀà±ğÖ§³ö
+# æœˆåº¦åˆ†ç±»åˆ«æ”¯å‡º
 create view money_track.monthly_exp_category as
 select cat.month,
        cat.category,
@@ -263,12 +225,12 @@ from (
          select
             date_format(m.time, '%Y-%m') as month
             , m.debit_credit
-            , sum(case when m.debit_credit='ÊÕÈë' then m.amount
-                when m.debit_credit='Ö§³ö' then m.amount  else 0 end) as amount
+            , sum(case when m.debit_credit='æ”¶å…¥' then m.amount
+                when m.debit_credit='æ”¯å‡º' then m.amount  else 0 end) as amount
             , m.category
         from money_track.cashflow m
-        where m.transaction_id is null  -- ¹ıÂËµôÖ¤È¯½»Ò×¼ÇÂ¼
-          and m.debit_credit='Ö§³ö'      -- Ö»Í³¼ÆÖ§³öÏû·Ñ¼ÇÂ¼
+        where m.transaction_id is null  -- è¿‡æ»¤æ‰è¯åˆ¸äº¤æ˜“è®°å½•
+          and m.debit_credit='æ”¯å‡º'      -- åªç»Ÿè®¡æ”¯å‡ºæ¶ˆè´¹è®°å½•
         group by month, category
 
 ) cat
@@ -276,7 +238,7 @@ left join money_track.monthly_balance tot on cat.month = tot.month
 order by month desc, amount desc;
 
 
-# ÔÂ¶ÈÖ§³ö½»Ò×ÀÛ»ıÕ¼±È
+# æœˆåº¦æ”¯å‡ºäº¤æ˜“ç´¯ç§¯å æ¯”
 # drop view money_track.monthly_exp_cdf;                               d
 create view money_track.monthly_exp_cdf as
 select cat.cashflow_id as id
@@ -295,16 +257,16 @@ from (
             , m.counterparty
             , m.goods
             , m.debit_credit
-            , case when m.debit_credit='ÊÕÈë' then m.amount
-                when m.debit_credit='Ö§³ö' then m.amount  else 0 end as amount
+            , case when m.debit_credit='æ”¶å…¥' then m.amount
+                when m.debit_credit='æ”¯å‡º' then m.amount  else 0 end as amount
             , m.payment_method
             , m.status
             , m.category
             , m.source
             , m.transaction_id
         from money_track.cashflow m
-        where m.transaction_id is null  -- ¹ıÂËµôÖ¤È¯½»Ò×¼ÇÂ¼
-          and m.debit_credit='Ö§³ö'      -- Ö»Í³¼ÆÖ§³öÏû·Ñ¼ÇÂ¼
+        where m.transaction_id is null  -- è¿‡æ»¤æ‰è¯åˆ¸äº¤æ˜“è®°å½•
+          and m.debit_credit='æ”¯å‡º'      -- åªç»Ÿè®¡æ”¯å‡ºæ¶ˆè´¹è®°å½•
           and m.counterparty not in (
                 select distinct account_name from money_track.account_info
      )
@@ -313,59 +275,6 @@ from (
 
 order by month desc, amount desc;
 
-
-
-CREATE TABLE asset_snapshot (
-                                snapshot_id   INT AUTO_INCREMENT PRIMARY KEY,
-                                date          DATE         NOT NULL UNIQUE,  -- ¼ÙÉèÃ¿ÈÕ½öÒ»Ìõ¿ìÕÕ
-                                cash          DECIMAL(18,3) NOT NULL,        -- ¿ÉÓÃ×Ê½ğ£¨¿É½»Ò×ÏÖ½ğ£©
-                                position_value DECIMAL(18,3) NOT NULL,       -- ³Ö²Ö×ÜÊĞÖµ
-                                total_asset   DECIMAL(18,3) NOT NULL,        -- ×Ü×Ê²ú = cash + position_value
-                                INDEX (date)
-);
-
-
-CREATE TABLE transaction (
-                             transaction_id INT AUTO_INCREMENT PRIMARY KEY,
-                             stock_code    VARCHAR(10)   NOT NULL,        -- ¹ÉÆ±´úÂë£¨Èç 002991.SZ£©
-                             type          ENUM('BUY','SELL', 'DIVIDEND') NOT NULL,   -- ½»Ò×ÀàĞÍ
-                             timestamp     DATETIME      NOT NULL,        -- ½»Ò×Ê±¼ä
-                             quantity      INT           NOT NULL,        -- ½»Ò×ÊıÁ¿£¨¹É£©
-                             price         DECIMAL(18,3) NOT NULL,        -- ³É½»µ¥¼Û
-                             fee           DECIMAL(18,2) NOT NULL DEFAULT 0,  -- ÊÖĞø·Ñ
-                             INDEX (stock_code, timestamp)
-);
-
-
-CREATE TABLE stock_price (
-                             stock_code        VARCHAR(10)   NOT NULL,   -- ¹ÉÆ±´úÂë£¨Èç002991.SZ£©
-                             date              DATE          NOT NULL,   -- ½»Ò×ÈÕ
-                             open              DECIMAL(18,2) NOT NULL,   -- ¿ªÅÌ¼Û
-                             high              DECIMAL(18,2) NOT NULL,   -- ×î¸ß¼Û
-                             low               DECIMAL(18,2) NOT NULL,   -- ×îµÍ¼Û
-                             close             DECIMAL(18,2) NOT NULL,   -- ÊÕÅÌ¼Û
-                             volume            BIGINT        NOT NULL,   -- ³É½»Á¿£¨¹É£©
-                             amount            DECIMAL(18,2) NOT NULL,   -- ³É½»¶î£¨Ôª£©
-                             outstanding_share BIGINT        NOT NULL,   -- Á÷Í¨¹É±¾£¨¹É£©
-                             turnover          DECIMAL(2,18) NOT NULL,   -- »»ÊÖÂÊ£¨Èç0.016853£©
-                             PRIMARY KEY (stock_code, date),             -- ¸´ºÏÖ÷¼ü
-                             INDEX (date),                               -- °´ÈÕÆÚ²éÑ¯ÓÅ»¯
-                             INDEX (stock_code)                          -- °´¹ÉÆ±´úÂë²éÑ¯ÓÅ»¯
-);
-
-
-# CREATE TABLE position (
-#                           position_id  INT AUTO_INCREMENT PRIMARY KEY,
-#                           stock_code   VARCHAR(10)   NOT NULL UNIQUE,  -- ¹ÉÆ±´úÂëÎ¨Ò»£¨µ¥Ö»¹ÉÆ±Ò»Ìõ¼ÇÂ¼£©
-#                           quantity     INT           NOT NULL,         -- µ±Ç°³Ö²ÖÊıÁ¿
-#                           avg_cost     DECIMAL(18,3) NOT NULL,         -- ¶¯Ì¬¼ÆËãµÄÆ½¾ù³É±¾¼Û
-#                           last_updated DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP        -- ×îºó¸üĞÂÊ±¼ä
-# );
-
-# ³Ö²ÖÊÓÍ¼
-select *
-      , sum(if(type='BUY', quantity, -quantity)) over (partition by stock_code order by timestamp) as position
-from transaction;
 
 create view money_track.v_position as
 select stock_code
@@ -395,11 +304,11 @@ SELECT
     SUM(p.quantity * sp.close) AS position_value,
     a.cash + SUM(p.quantity * sp.close) AS total_asset
 FROM asset_snapshot a
-         JOIN position p ON 1=1  -- µ¥ÕË»§ÎŞĞè¹ØÁªÌõ¼ş
+         JOIN position p ON 1=1  -- å•è´¦æˆ·æ— éœ€å…³è”æ¡ä»¶
          JOIN stock_price sp ON p.stock_code = sp.stock_code
-WHERE sp.date = (SELECT MAX(date) FROM stock_price);  -- »ñÈ¡×îĞÂ¼Û¸ñ
+WHERE sp.date = (SELECT MAX(date) FROM stock_price);  -- è·å–æœ€æ–°ä»·æ ¼
 
-# ³Ö²ÖÓ¯¿÷£¬TODO£º Ó¯¿÷±ÈÀıÓĞÎÊÌâ
+# æŒä»“ç›ˆäºï¼ŒTODOï¼š ç›ˆäºæ¯”ä¾‹æœ‰é—®é¢˜
 # drop view v_current_asset;
 create view v_current_asset as
 select
@@ -420,7 +329,7 @@ left join (
 ) sp on p.stock_code = sp.stock_code
 where sp.rn = 1;
 
--- Ê¾Àı£ºÍ³¼Æ 2023 Äê 10 ÔÂÓ¯¿÷
+-- ç¤ºä¾‹ï¼šç»Ÿè®¡ 2023 å¹´ 10 æœˆç›ˆäº
 CREATE VIEW v_monthly_pnl AS
 SELECT
     (SELECT total_asset FROM asset_snapshot WHERE date = '2023-10-31') -
@@ -437,7 +346,7 @@ SELECT
     p.quantity,
     p.avg_cost,
     sp.close AS current_price,
-    (sp.close - p.avg_cost) * p.quantity AS unrealized_pnl  -- Î´ÊµÏÖÓ¯¿÷
+    (sp.close - p.avg_cost) * p.quantity AS unrealized_pnl  -- æœªå®ç°ç›ˆäº
 FROM position p
          JOIN stock_price sp ON p.stock_code = sp.stock_code
 WHERE sp.date = (SELECT MAX(date) FROM stock_price);
