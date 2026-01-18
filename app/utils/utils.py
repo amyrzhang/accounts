@@ -72,7 +72,7 @@ def determine_cashflow_properties(data: dict) -> tuple:
         elif data['type'] == 'SELL':
             debit_credit, cashflow_type = '收入', '赎回'
         elif data['type'] == 'DIVIDEND':
-            debit_credit, cashflow_type = '收入', '利息股息红利'
+            debit_credit, cashflow_type = '收入', '红利'
         else:
             return None, {"error": "Invalid transaction type"}
 
