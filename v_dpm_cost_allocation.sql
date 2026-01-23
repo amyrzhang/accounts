@@ -17,6 +17,7 @@ order by d.tenant_id, p.order_num, d.order_num, u.people_order;
 # 基础公司1项，津补贴共计8 项
 # 数产公司绩效计算逻辑：performance_salary + performance_salary
 # 九章公司绩效计算逻辑：performance_salary + residual_performance_salary + performance_adjustment
+drop view if exists v_salary;
 create view v_salary as
 select id
      , tenant_id
@@ -28,7 +29,8 @@ select id
        duty_allowance+dietary_allowance+
        hygiene_allowance+property_allowance+
        performance_deduction+performance_salary as salary
-from dpm.dpm_staff_salary;
+from dpm.dpm_staff_salary
+where not (base_salary = 0 and `month` = '2026-01');  # 去掉过年费
 
 
 # 1.【员工当期成本模型】
@@ -56,6 +58,7 @@ left join dpm_staff_union_fund uf
 
 
 # 2.【研发费用分摊表】
+drop view if exists v_rd_expense_apportionment;
 create view v_rd_expense_apportionment as
 with hour_rate as (select d.id                                                             as hour_id
                         , d.tenant_id
@@ -88,7 +91,7 @@ select h.tenant_id
      , round(ec.salary * hours / total_hours, 2)                    as gross_salary_amount
      , round(ec.pension_company * hours / total_hours, 2)           as pension_insurance_amount
      , round(ec.unemployment_company * hours / total_hours, 2)      as unemployment_insurance_amount
-     , round(ec.work_injury_company * hours / total_hours, 2)       as work_injury_company_amount
+     , round(ec.work_injury_company * hours / total_hours, 2)       as work_injury_insurance_amount
      , round(ec.housing_fund_company * hours / total_hours, 2)      as housing_provident_fund_amount
      , round(ec.medical_insurance_company * hours / total_hours, 2) as medical_insurance_amount
      , round(ec.company_annuity * hours / total_hours, 2)           as enterprise_annuity_amount
@@ -111,7 +114,7 @@ select ec.tenant_id
      , ec.salary - coalesce(rea.gross_salary_amount, 0)                                as gross_salary_amount
      , ec.pension_company - coalesce(rea.pension_insurance_amount, 0)                  as pension_insurance_amount
      , ec.unemployment_company - coalesce(rea.unemployment_insurance_amount, 0)        as unemployment_insurance_amount
-     , ec.work_injury_company - coalesce(rea.work_injury_company_amount, 0)            as work_injury_company_amount
+     , ec.work_injury_company - coalesce(rea.work_injury_insurance_amount, 0)          as work_injury_insurance_amount
      , ec.housing_fund_company - coalesce(rea.housing_provident_fund_amount, 0)        as housing_provident_fund_amount
      , ec.medical_insurance_company - coalesce(rea.medical_insurance_amount, 0)        as medical_insurance_amount
      , ec.company_annuity - coalesce(rea.enterprise_annuity_amount, 0)                 as enterprise_annuity_amount
@@ -123,7 +126,7 @@ left join (select tenant_id
              , sum(gross_salary_amount)           as gross_salary_amount
              , sum(pension_insurance_amount)      as pension_insurance_amount
              , sum(unemployment_insurance_amount) as unemployment_insurance_amount
-             , sum(work_injury_company_amount)    as work_injury_company_amount
+             , sum(work_injury_insurance_amount)    as work_injury_insurance_amount
              , sum(housing_provident_fund_amount) as housing_provident_fund_amount
              , sum(medical_insurance_amount)      as medical_insurance_amount
              , sum(enterprise_annuity_amount)     as enterprise_annuity_amount
@@ -138,7 +141,7 @@ where hours is null or hours < total_hours   # 过滤掉纯研发人员
 ;
 
 # 4.【人工成本分配表】
-# drop view if exists v_labor_cost_allocation;
+drop view if exists v_labor_cost_allocation;
 create view v_labor_cost_allocation as
 with expense_detail as (
     select tenant_id
@@ -150,7 +153,7 @@ with expense_detail as (
      , gross_salary_amount
      , pension_insurance_amount
      , unemployment_insurance_amount
-     , work_injury_company_amount
+     , work_injury_insurance_amount
      , housing_provident_fund_amount
      , medical_insurance_amount
      , enterprise_annuity_amount
@@ -168,7 +171,7 @@ select tenant_id
      , gross_salary_amount
      , pension_insurance_amount
      , unemployment_insurance_amount
-     , work_injury_company_amount
+     , work_injury_insurance_amount
      , housing_provident_fund_amount
      , medical_insurance_amount
      , enterprise_annuity_amount
@@ -183,14 +186,6 @@ select ed.tenant_id
      , ed.employee_type
      , vu.dept_name
      , ed.employee_name
-     , ed.gross_salary_amount
-     , ed.pension_insurance_amount
-     , ed.unemployment_insurance_amount
-     , ed.work_injury_company_amount
-     , ed.housing_provident_fund_amount
-     , ed.medical_insurance_amount
-     , ed.enterprise_annuity_amount
-     , ed.labor_union_fund_amount
      , slr.base_salary
      , slr.education_allowance
      , slr.skill_allowance
@@ -204,9 +199,20 @@ select ed.tenant_id
      , slr.residual_performance
      , slr.performance_adjustment
      , slr.performance_salary
+     , ed.gross_salary_amount
+     , ed.pension_insurance_amount
+     , ed.unemployment_insurance_amount
+     , ed.work_injury_insurance_amount
+     , ed.housing_provident_fund_amount
+     , ed.medical_insurance_amount
      , scr.large_medical_company
      , ant.payment_base as enterprise_annuity_contribution_base
+     , ed.enterprise_annuity_amount
      , fnd.total_salary as gross_salary
+     , ed.labor_union_fund_amount
+     , vu.company_order
+     , vu.dept_order
+     , vu.people_order
 from expense_detail ed
 left join dpm_staff_salary slr
   on slr.tenant_id=ed.tenant_id and slr.month=ed.year_month and slr.name=ed.employee_name
