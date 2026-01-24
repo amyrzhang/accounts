@@ -1,8 +1,9 @@
-
+# drop view if exists v_user;
 create view v_user  as
 select
       u.nick_name as name
      , d.dept_name as dept_name
+     , if(d.dept_name  in ('市场运营部', '市场拓展部','市场部', '项目实施部', '项目部'), '销售费用', '管理费用') as expense_type
      , p.dept_name as company_name
      , d.tenant_id as tenant_id
     , p.order_num as company_order
@@ -13,12 +14,15 @@ join sys_dept d on d.dept_id = u.dept_id
 join sys_dept p on d.parent_id = p.dept_id
 order by d.tenant_id, p.order_num, d.order_num, u.people_order;
 
+
+
+# 1.【员工当期成本模型】
+create view v_employee_cost as
+with v_salary as (
 # 0.【工资表】核算应发工资
 # 基础公司1项，津补贴共计8 项
 # 数产公司绩效计算逻辑：performance_salary + performance_salary
 # 九章公司绩效计算逻辑：performance_salary + residual_performance_salary + performance_adjustment
-drop view if exists v_salary;
-create view v_salary as
 select id
      , tenant_id
      , month
@@ -30,11 +34,8 @@ select id
        hygiene_allowance+property_allowance+
        performance_deduction+performance_salary as salary
 from dpm.dpm_staff_salary
-where not (base_salary = 0 and `month` = '2026-01');  # 去掉过年费
-
-
-# 1.【员工当期成本模型】
-create view v_employee_cost as
+where not (base_salary = 0 and `month` = '2026-01')  # 去掉过年费
+)
 select s.id
      , s.tenant_id
      , s.month
@@ -105,20 +106,20 @@ join v_employee_cost ec  # 人工成本模型
 ;
 
 # 3. 【待分摊池】
-drop view if exists v_pending_allocation_pool;
+# drop view if exists v_pending_allocation_pool;
 create view v_pending_allocation_pool as
 select ec.tenant_id
-     , ec.month                                                                        as `year_month`
-     , if(dept_name in ('市场运营部', '市场拓展部', '市场部'), '销售费用', '管理费用') as expense_type
-     , ec.name                                                                         as employee_name
-     , ec.salary - coalesce(rea.gross_salary_amount, 0)                                as gross_salary_amount
-     , ec.pension_company - coalesce(rea.pension_insurance_amount, 0)                  as pension_insurance_amount
-     , ec.unemployment_company - coalesce(rea.unemployment_insurance_amount, 0)        as unemployment_insurance_amount
-     , ec.work_injury_company - coalesce(rea.work_injury_insurance_amount, 0)          as work_injury_insurance_amount
-     , ec.housing_fund_company - coalesce(rea.housing_provident_fund_amount, 0)        as housing_provident_fund_amount
-     , ec.medical_insurance_company - coalesce(rea.medical_insurance_amount, 0)        as medical_insurance_amount
-     , ec.company_annuity - coalesce(rea.enterprise_annuity_amount, 0)                 as enterprise_annuity_amount
-     , ec.union_fund - coalesce(rea.labor_union_fund_amount, 0)                        as labor_union_fund_amount
+     , ec.month                                                                 as `year_month`
+     , vu.expense_type                                                          as expense_type
+     , ec.name                                                                  as employee_name
+     , ec.salary - coalesce(rea.gross_salary_amount, 0)                         as gross_salary_amount
+     , ec.pension_company - coalesce(rea.pension_insurance_amount, 0)           as pension_insurance_amount
+     , ec.unemployment_company - coalesce(rea.unemployment_insurance_amount, 0) as unemployment_insurance_amount
+     , ec.work_injury_company - coalesce(rea.work_injury_insurance_amount, 0)   as work_injury_insurance_amount
+     , ec.housing_fund_company - coalesce(rea.housing_provident_fund_amount, 0) as housing_provident_fund_amount
+     , ec.medical_insurance_company - coalesce(rea.medical_insurance_amount, 0) as medical_insurance_amount
+     , ec.company_annuity - coalesce(rea.enterprise_annuity_amount, 0)          as enterprise_annuity_amount
+     , ec.union_fund - coalesce(rea.labor_union_fund_amount, 0)                 as labor_union_fund_amount
 from v_employee_cost ec
 left join (select tenant_id
              , `year_month`
@@ -136,7 +137,7 @@ left join (select tenant_id
         from v_rd_expense_apportionment
         group by tenant_id, `year_month`, employee_name) rea
    on ec.tenant_id = rea.tenant_id and ec.month = rea.year_month and ec.name = rea.employee_name
-left join v_user vu on rea.tenant_id = vu.tenant_id and ec.name = vu.name
+left join v_user vu on ec.tenant_id = vu.tenant_id and ec.name = vu.name
 where hours is null or hours < total_hours   # 过滤掉纯研发人员
 ;
 
