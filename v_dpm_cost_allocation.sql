@@ -1,8 +1,9 @@
-
+# drop view if exists v_user;
 create view v_user  as
 select
       u.nick_name as name
      , d.dept_name as dept_name
+     , if(d.dept_name  in ('å¸‚åœºè¿è¥éƒ¨', 'å¸‚åœºæ‹“å±•éƒ¨','å¸‚åœºéƒ¨', 'é¡¹ç›®å®æ–½éƒ¨', 'é¡¹ç›®éƒ¨'), 'é”€å”®è´¹ç”¨', 'ç®¡ç†è´¹ç”¨') as expense_type
      , p.dept_name as company_name
      , d.tenant_id as tenant_id
     , p.order_num as company_order
@@ -13,11 +14,15 @@ join sys_dept d on d.dept_id = u.dept_id
 join sys_dept p on d.parent_id = p.dept_id
 order by d.tenant_id, p.order_num, d.order_num, u.people_order;
 
-# 0.¡¾¹¤×Ê±í¡¿ºËËãÓ¦·¢¹¤×Ê
-# »ù´¡¹«Ë¾1Ïî£¬½ò²¹Ìù¹²¼Æ8 Ïî
-# Êı²ú¹«Ë¾¼¨Ğ§¼ÆËãÂß¼­£ºperformance_salary + performance_salary
-# ¾ÅÕÂ¹«Ë¾¼¨Ğ§¼ÆËãÂß¼­£ºperformance_salary + residual_performance_salary + performance_adjustment
-create view v_salary as
+
+
+# 1.ã€å‘˜å·¥å½“æœŸæˆæœ¬æ¨¡å‹ã€‘
+create view v_employee_cost as
+with v_salary as (
+# 0.ã€å·¥èµ„è¡¨ã€‘æ ¸ç®—åº”å‘å·¥èµ„
+# åŸºç¡€å…¬å¸1é¡¹ï¼Œæ´¥è¡¥è´´å…±è®¡8 é¡¹
+# æ•°äº§å…¬å¸ç»©æ•ˆè®¡ç®—é€»è¾‘ï¼šperformance_salary + performance_salary
+# ä¹ç« å…¬å¸ç»©æ•ˆè®¡ç®—é€»è¾‘ï¼šperformance_salary + residual_performance_salary + performance_adjustment
 select id
      , tenant_id
      , month
@@ -28,23 +33,21 @@ select id
        duty_allowance+dietary_allowance+
        hygiene_allowance+property_allowance+
        performance_deduction+performance_salary as salary
-from dpm.dpm_staff_salary;
-
-
-# 1.¡¾Ô±¹¤µ±ÆÚ³É±¾Ä£ĞÍ¡¿
-create view v_employee_cost as
+from dpm.dpm_staff_salary
+where not (base_salary = 0 and `month` = '2026-01')  # å»æ‰è¿‡å¹´è´¹
+)
 select s.id
      , s.tenant_id
      , s.month
      , s.name
-     , s.salary  # Ó¦·¢¹¤×Ê
-     , ss.pension_company  # µ¥Î»Ö§¸¶ÑøÀÏ±£ÏÕ
-     , ss.unemployment_company  # µ¥Î»Ö§¸¶Ê§Òµ±£ÏÕ
-     , ss.work_injury_company  # µ¥Î»Ö§¸¶¹¤ÉË±£ÏÕ
-     , ss.housing_fund_company  # µ¥Î»Ö§¸¶¹«»ı½ğ
-     , ss.medical_insurance_company  # µ¥Î»Ö§¸¶Ò½ÁÆ±£ÏÕ
-     , ea.company_annuity  # µ¥Î»²¿·ÖÆóÒµÄê½ğ
-     , uf.union_fund  # ¹¤»á¾­·Ñ
+     , s.salary  # åº”å‘å·¥èµ„
+     , ss.pension_company  # å•ä½æ”¯ä»˜å…»è€ä¿é™©
+     , ss.unemployment_company  # å•ä½æ”¯ä»˜å¤±ä¸šä¿é™©
+     , ss.work_injury_company  # å•ä½æ”¯ä»˜å·¥ä¼¤ä¿é™©
+     , ss.housing_fund_company  # å•ä½æ”¯ä»˜å…¬ç§¯é‡‘
+     , ss.medical_insurance_company  # å•ä½æ”¯ä»˜åŒ»ç–—ä¿é™©
+     , ea.company_annuity  # å•ä½éƒ¨åˆ†ä¼ä¸šå¹´é‡‘
+     , uf.union_fund  # å·¥ä¼šç»è´¹
 from v_salary s
 left join dpm_staff_social_security ss
     on s.tenant_id=ss.tenant_id and s.month=ss.month and s.name=ss.name
@@ -55,30 +58,30 @@ left join dpm_staff_union_fund uf
 
 
 
-# 2.¡¾ÑĞ·¢·ÑÓÃ·ÖÌ¯±í¡¿
+# 2.ã€ç ”å‘è´¹ç”¨åˆ†æ‘Šè¡¨ã€‘
 drop view if exists v_rd_expense_apportionment;
 create view v_rd_expense_apportionment as
 with hour_rate as (select d.id                                                             as hour_id
                         , d.tenant_id
                         , date_format(d.date, '%Y-%m')                                     as `year_month`
                         , case
-                              when d.fee_type = 1 then 'ÑĞ·¢Ö§³ö'
-                              when d.fee_type = 2 then 'ÏîÄ¿³É±¾' end                      as expense_type
+                              when d.fee_type = 1 then 'ç ”å‘æ”¯å‡º'
+                              when d.fee_type = 2 then 'é¡¹ç›®æˆæœ¬' end                      as expense_type
                         , p.name                                                           as project_name
                         , case
-                              when d.fee_type = 1 and d.staff_type = 1 then 'ÑĞ·¢ÈËÔ±'
-                              when d.fee_type = 1 and d.staff_type = 2 then '¸¨ÖúÈËÔ±' end as employee_type
+                              when d.fee_type = 1 and d.staff_type = 1 then 'ç ”å‘äººå‘˜'
+                              when d.fee_type = 1 and d.staff_type = 2 then 'è¾…åŠ©äººå‘˜' end as employee_type
                         , d.staff_name                                                     as employee_name
                         , d.workday                                                        as hours
                         , w.hours                                                          as total_hours
                         , d.workday / w.hours                                              as hour_rate
-                   from dpm_details d # ¹¤Ê±±í
-    join dpm_project p  # ¹ØÁªÏîÄ¿Ãû³Æ
+                   from dpm_details d # å·¥æ—¶è¡¨
+    join dpm_project p  # å…³è”é¡¹ç›®åç§°
       on d.project_id=p.id
     join (
         select distinct date, hours
         from dpm_workday
-    ) w  on w.date=d.date  # »ñÈ¡µ±ÔÂ¹¤×÷ÈÕÌìÊı£¬¸÷×â»§·Ö±ğ¼ÇÂ¼£¬ĞèÒªÈ¥ÖØ
+    ) w  on w.date=d.date  # è·å–å½“æœˆå·¥ä½œæ—¥å¤©æ•°ï¼Œå„ç§Ÿæˆ·åˆ†åˆ«è®°å½•ï¼Œéœ€è¦å»é‡
 )
 select h.tenant_id
      , `year_month`
@@ -89,34 +92,34 @@ select h.tenant_id
      , round(ec.salary * hours / total_hours, 2)                    as gross_salary_amount
      , round(ec.pension_company * hours / total_hours, 2)           as pension_insurance_amount
      , round(ec.unemployment_company * hours / total_hours, 2)      as unemployment_insurance_amount
-     , round(ec.work_injury_company * hours / total_hours, 2)       as work_injury_company_amount
+     , round(ec.work_injury_company * hours / total_hours, 2)       as work_injury_insurance_amount
      , round(ec.housing_fund_company * hours / total_hours, 2)      as housing_provident_fund_amount
      , round(ec.medical_insurance_company * hours / total_hours, 2) as medical_insurance_amount
      , round(ec.company_annuity * hours / total_hours, 2)           as enterprise_annuity_amount
      , round(ec.union_fund * hours / total_hours, 2)                as labor_union_fund_amount
-     , hours # Áô¸ö±ê¼Ç£¬·½±ãÉ¸Ñ¡
+     , hours  # ç•™ä¸ªæ ‡è®°ï¼Œæ–¹ä¾¿ç­›é€‰
      , total_hours
      , hour_rate
-from hour_rate h  # ¹¤Ê±±í
-join v_employee_cost ec  # ÈË¹¤³É±¾Ä£ĞÍ
+from hour_rate h  # å·¥æ—¶è¡¨
+join v_employee_cost ec  # äººå·¥æˆæœ¬æ¨¡å‹
   on h.tenant_id=ec.tenant_id and `year_month`=ec.month and h.employee_name=ec.name
 ;
 
-# 3. ¡¾´ı·ÖÌ¯³Ø¡¿
-drop view if exists v_pending_allocation_pool;
+# 3. ã€å¾…åˆ†æ‘Šæ± ã€‘
+# drop view if exists v_pending_allocation_pool;
 create view v_pending_allocation_pool as
 select ec.tenant_id
-     , ec.month                                                                        as `year_month`
-     , if(dept_name in ('ÊĞ³¡ÔËÓª²¿', 'ÊĞ³¡ÍØÕ¹²¿', 'ÊĞ³¡²¿'), 'ÏúÊÛ·ÑÓÃ', '¹ÜÀí·ÑÓÃ') as expense_type
-     , ec.name                                                                         as employee_name
-     , ec.salary - coalesce(rea.gross_salary_amount, 0)                                as gross_salary_amount
-     , ec.pension_company - coalesce(rea.pension_insurance_amount, 0)                  as pension_insurance_amount
-     , ec.unemployment_company - coalesce(rea.unemployment_insurance_amount, 0)        as unemployment_insurance_amount
-     , ec.work_injury_company - coalesce(rea.work_injury_company_amount, 0)            as work_injury_company_amount
-     , ec.housing_fund_company - coalesce(rea.housing_provident_fund_amount, 0)        as housing_provident_fund_amount
-     , ec.medical_insurance_company - coalesce(rea.medical_insurance_amount, 0)        as medical_insurance_amount
-     , ec.company_annuity - coalesce(rea.enterprise_annuity_amount, 0)                 as enterprise_annuity_amount
-     , ec.union_fund - coalesce(rea.labor_union_fund_amount, 0)                        as labor_union_fund_amount
+     , ec.month                                                                 as `year_month`
+     , vu.expense_type                                                          as expense_type
+     , ec.name                                                                  as employee_name
+     , ec.salary - coalesce(rea.gross_salary_amount, 0)                         as gross_salary_amount
+     , ec.pension_company - coalesce(rea.pension_insurance_amount, 0)           as pension_insurance_amount
+     , ec.unemployment_company - coalesce(rea.unemployment_insurance_amount, 0) as unemployment_insurance_amount
+     , ec.work_injury_company - coalesce(rea.work_injury_insurance_amount, 0)   as work_injury_insurance_amount
+     , ec.housing_fund_company - coalesce(rea.housing_provident_fund_amount, 0) as housing_provident_fund_amount
+     , ec.medical_insurance_company - coalesce(rea.medical_insurance_amount, 0) as medical_insurance_amount
+     , ec.company_annuity - coalesce(rea.enterprise_annuity_amount, 0)          as enterprise_annuity_amount
+     , ec.union_fund - coalesce(rea.labor_union_fund_amount, 0)                 as labor_union_fund_amount
 from v_employee_cost ec
 left join (select tenant_id
              , `year_month`
@@ -124,7 +127,7 @@ left join (select tenant_id
              , sum(gross_salary_amount)           as gross_salary_amount
              , sum(pension_insurance_amount)      as pension_insurance_amount
              , sum(unemployment_insurance_amount) as unemployment_insurance_amount
-             , sum(work_injury_company_amount)    as work_injury_company_amount
+             , sum(work_injury_insurance_amount)    as work_injury_insurance_amount
              , sum(housing_provident_fund_amount) as housing_provident_fund_amount
              , sum(medical_insurance_amount)      as medical_insurance_amount
              , sum(enterprise_annuity_amount)     as enterprise_annuity_amount
@@ -134,13 +137,13 @@ left join (select tenant_id
         from v_rd_expense_apportionment
         group by tenant_id, `year_month`, employee_name) rea
    on ec.tenant_id = rea.tenant_id and ec.month = rea.year_month and ec.name = rea.employee_name
-left join v_user vu on rea.tenant_id = vu.tenant_id and ec.name = vu.name
-where hours is null or hours < total_hours   # ¹ıÂËµô´¿ÑĞ·¢ÈËÔ±
+left join v_user vu on ec.tenant_id = vu.tenant_id and ec.name = vu.name
+where hours is null or hours < total_hours   # è¿‡æ»¤æ‰çº¯ç ”å‘äººå‘˜
 ;
 
-# 4.¡¾ÈË¹¤³É±¾·ÖÅä±í¡¿
-# drop view if exists v_labor_cost_allocation;
-# create view v_labor_cost_allocation as
+# 4.ã€äººå·¥æˆæœ¬åˆ†é…è¡¨ã€‘
+drop view if exists v_labor_cost_allocation;
+create view v_labor_cost_allocation as
 with expense_detail as (
     select tenant_id
      , `year_month`
@@ -151,7 +154,7 @@ with expense_detail as (
      , gross_salary_amount
      , pension_insurance_amount
      , unemployment_insurance_amount
-     , work_injury_company_amount
+     , work_injury_insurance_amount
      , housing_provident_fund_amount
      , medical_insurance_amount
      , enterprise_annuity_amount
@@ -169,7 +172,7 @@ select tenant_id
      , gross_salary_amount
      , pension_insurance_amount
      , unemployment_insurance_amount
-     , work_injury_company_amount
+     , work_injury_insurance_amount
      , housing_provident_fund_amount
      , medical_insurance_amount
      , enterprise_annuity_amount
@@ -184,41 +187,44 @@ select ed.tenant_id
      , ed.employee_type
      , vu.dept_name
      , ed.employee_name
+     , slr.base_salary
+     , slr.education_allowance
+     , slr.skill_allowance
+     , slr.seniority_allowance
+     , slr.communication_allowance
+     , slr.duty_allowance
+     , slr.dietary_allowance
+     , slr.hygiene_allowance
+     , slr.property_allowance
+     , slr.performance_deduction
+     , slr.residual_performance
+     , slr.performance_adjustment
+     , slr.performance_salary
      , ed.gross_salary_amount
      , ed.pension_insurance_amount
      , ed.unemployment_insurance_amount
-     , ed.work_injury_company_amount
+     , ed.work_injury_insurance_amount
      , ed.housing_provident_fund_amount
      , ed.medical_insurance_amount
+     , scr.large_medical_company
+     , ant.payment_base as enterprise_annuity_contribution_base
      , ed.enterprise_annuity_amount
+     , fnd.total_salary as gross_salary
      , ed.labor_union_fund_amount
-#      , slr.base_salary
-#      , slr.education_allowance
-#      , slr.skill_allowance
-#      , slr.seniority_allowance
-#      , slr.communication_allowance
-#      , slr.duty_allowance
-#      , slr.dietary_allowance
-#      , slr.hygiene_allowance
-#      , slr.property_allowance
-#      , slr.performance_deduction
-#      , slr.residual_performance
-#      , slr.performance_adjustment
-#      , slr.performance_salary
-#      , scr.large_medical_company
-#      , ant.payment_base as enterprise_annuity_contribution_base
-#      , fnd.total_salary as gross_salary
+     , vu.company_order
+     , vu.dept_order
+     , vu.people_order
 from expense_detail ed
 left join dpm_staff_salary slr
   on slr.tenant_id=ed.tenant_id and slr.month=ed.year_month and slr.name=ed.employee_name
-# left join dpm_staff_social_security scr
-#   on scr.tenant_id=ed.tenant_id and scr.month=ed.year_month and scr.name=ed.employee_name
-# left join dpm_staff_enterprise_annuity ant
-#   on ant.tenant_id=ed.tenant_id and ant.month=ed.year_month and ant.name=ed.employee_name
-# left join dpm_staff_union_fund fnd
-#   on fnd.tenant_id=ed.tenant_id and fnd.month=ed.year_month and fnd.name=ed.employee_name
+left join dpm_staff_social_security scr
+  on scr.tenant_id=ed.tenant_id and scr.month=ed.year_month and scr.name=ed.employee_name
+left join dpm_staff_enterprise_annuity ant
+  on ant.tenant_id=ed.tenant_id and ant.month=ed.year_month and ant.name=ed.employee_name
+left join dpm_staff_union_fund fnd
+  on fnd.tenant_id=ed.tenant_id and fnd.month=ed.year_month and fnd.name=ed.employee_name
 left join v_user vu
  on ed.tenant_id=vu.tenant_id and ed.employee_name=vu.name
-# order by ed.expense_type, ed.project_name, vu.company_order, vu.dept_order, vu.people_order
+order by ed.project_name, ed.expense_type, vu.company_order, vu.dept_order, vu.people_order
 ;
 
