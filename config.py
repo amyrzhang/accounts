@@ -8,9 +8,9 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     # mysql 配置
-    MYSQL_USERNAME = "root"
+    MYSQL_USERNAME = "datagrip"
     MYSQL_PASSWORD = "amy24%Bella"
-    MYSQL_HOST = "43.134.233.6"
+    MYSQL_HOST = "59.110.83.30"
     MYSQL_PORT = 3306
     MYSQL_DATABASE = "money_track"
 
